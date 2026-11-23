@@ -1,5 +1,18 @@
 <resources>
     <string name="app_name">Mon premier quiz</string>
     <string name="welcome_title">Mon premier quiz</string>
-    <string name="welcome_message">Bienvenue ! Ici, nous allons construire notre quiz pas à pas.</string>
+    <string name="welcome_message">Prêt à découvrir le code avec ce quiz ?</string>
+    <string name="start_quiz">Commencer</string>
+    <string name="question_count">%1$d questions</string>
+    <string name="question_progress">Question %1$d sur %2$d</string>
+    <string name="quiz_score">Score : %1$d / %2$d</string>
+    <string name="quiz_finished">Quiz terminé</string>
+    <string name="final_score">%1$d / %2$d</string>
+    <string name="final_score_label">Bonnes réponses</string>
+    <string name="restart_quiz">Recommencer</string>
+    <string name="choose_answer">Choisis une réponse.</string>
+    <string name="correct_feedback">Bonne réponse !</string>
+    <string name="incorrect_feedback">Réponse incorrecte.</string>
+    <string name="next_question">Question suivante</string>
+    <string name="show_results">Voir mon résultat</string>
 </resources>

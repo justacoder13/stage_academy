@@ -4,24 +4,27 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import fr.stageacademy.quiz.ui.theme.QuizTheme
@@ -49,6 +52,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun WelcomeScreen(modifier: Modifier = Modifier) {
+    var hasStarted by rememberSaveable { mutableStateOf(false) }
     val firstQuestion: Question = Question(
         text = "Quel outil garde l’historique du code ?",
         choices = listOf("Git", "Android", "Compose"),
@@ -90,45 +94,52 @@ fun WelcomeScreen(modifier: Modifier = Modifier) {
         mutableStateOf(presenter.getScore())
     }
 
-    Column(
+    val colors = MaterialTheme.colorScheme
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .background(Brush.verticalGradient(listOf(colors.background, colors.primaryContainer))),
+        contentAlignment = if (hasStarted) Alignment.TopCenter else Alignment.Center,
     ) {
-        Text(
-            text = stringResource(R.string.welcome_title),
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        Text(text = "Score : $displayedScore / ${questions.size}")
-        if (isQuizFinished) {
-            Text(text = "Quiz terminé")
-            Button(onClick = {
-                presenter.restart()
-                displayedQuestionIndex = presenter.getCurrentQuestionIndex()
-                isQuizFinished = presenter.isFinished()
-                displayedScore = presenter.getScore()
-            }) {
-                Text(text = "Recommencer")
+        Column(
+            modifier = Modifier
+                .widthIn(max = 520.dp)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            if (!hasStarted) {
+                WelcomePanel(questionCount = questions.size, onStart = { hasStarted = true })
+                return@Column
             }
-        } else {
-            Text(text = "Question ${displayedQuestionIndex + 1}")
-            val question: Question = presenter.getCurrentQuestion()
-            QuestionView(
-                question = question,
-                questionIndex = displayedQuestionIndex,
-                presenter = presenter,
-                onAnswerSubmitted = {
-                    displayedScore = presenter.getScore()
-                },
-                onNextQuestion = {
-                    presenter.goToNextQuestion()
-                    displayedQuestionIndex = presenter.getCurrentQuestionIndex()
-                    isQuizFinished = presenter.isFinished()
-                },
-            )
+
+            QuizHeader(score = displayedScore.takeUnless { isQuizFinished }, questionCount = questions.size)
+            if (isQuizFinished) {
+                ResultPanel(
+                    score = displayedScore,
+                    questionCount = questions.size,
+                    onRestart = {
+                        presenter.restart()
+                        displayedQuestionIndex = presenter.getCurrentQuestionIndex()
+                        isQuizFinished = presenter.isFinished()
+                        displayedScore = presenter.getScore()
+                    },
+                )
+            } else {
+                QuestionView(
+                    question = presenter.getCurrentQuestion(),
+                    questionIndex = displayedQuestionIndex,
+                    questionCount = questions.size,
+                    presenter = presenter,
+                    onAnswerSubmitted = { displayedScore = presenter.getScore() },
+                    onNextQuestion = {
+                        presenter.goToNextQuestion()
+                        displayedQuestionIndex = presenter.getCurrentQuestionIndex()
+                        isQuizFinished = presenter.isFinished()
+                    },
+                )
+            }
         }
     }
 }
@@ -137,49 +148,28 @@ fun WelcomeScreen(modifier: Modifier = Modifier) {
 private fun QuestionView(
     question: Question,
     questionIndex: Int,
+    questionCount: Int,
     presenter: QuizContract,
     onAnswerSubmitted: () -> Unit,
     onNextQuestion: () -> Unit,
 ) {
-    var feedbackText: String by remember(presenter, questionIndex) {
-        mutableStateOf("Choisis une réponse.")
-    }
-    var canGoToNextQuestion: Boolean by remember(presenter, questionIndex) {
-        mutableStateOf(presenter.canGoToNextQuestion())
-    }
+    var selectedChoice by remember(presenter, questionIndex) { mutableStateOf<String?>(null) }
+    var isCorrect by remember(presenter, questionIndex) { mutableStateOf(false) }
 
-    fun checkAnswer(selectedAnswer: String): Unit {
-        val isAnswerCorrect: Boolean = presenter.submitAnswer(selectedAnswer)
-        if (isAnswerCorrect) {
-            feedbackText = "Bonne réponse !"
-        } else {
-            feedbackText = "Réponse incorrecte."
-        }
-        canGoToNextQuestion = presenter.canGoToNextQuestion()
-        onAnswerSubmitted()
-    }
-
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(text = question.text)
-        for (choice: String in question.choices) {
-            Button(
-                onClick = { checkAnswer(choice) },
-                enabled = !canGoToNextQuestion,
-            ) {
-                Text(text = choice)
-            }
-        }
-        Text(text = feedbackText)
-        Button(
-            onClick = onNextQuestion,
-            enabled = canGoToNextQuestion,
-        ) {
-            Text(text = "Question suivante")
-        }
-    }
+    QuestionPanel(
+        question = question,
+        questionNumber = questionIndex + 1,
+        questionCount = questionCount,
+        selectedChoice = selectedChoice,
+        isCorrect = isCorrect,
+        canContinue = presenter.canGoToNextQuestion(),
+        onChoice = { choice ->
+            isCorrect = presenter.submitAnswer(choice)
+            selectedChoice = choice
+            onAnswerSubmitted()
+        },
+        onContinue = onNextQuestion,
+    )
 }
 
 @Preview(showBackground = true, locale = "fr")

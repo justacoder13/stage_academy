@@ -4,6 +4,18 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val localAppData = providers.environmentVariable("LOCALAPPDATA").orNull
+val checkout = rootDir.canonicalFile.toPath()
+val isInOneDrive = listOf("OneDrive", "OneDriveConsumer", "OneDriveCommercial")
+    .mapNotNull { providers.environmentVariable(it).orNull?.takeIf(String::isNotBlank) }
+    .any { checkout.startsWith(file(it).canonicalFile.toPath()) }
+
+if (localAppData != null && isInOneDrive) {
+    // Keep generated files outside OneDrive so Gradle can replace them during builds.
+    val checkoutId = Integer.toHexString(checkout.hashCode())
+    layout.buildDirectory.set(file("$localAppData/StageAcademy/build/$checkoutId/app"))
+}
+
 android {
     namespace = "fr.stageacademy.quiz"
     compileSdk = 36

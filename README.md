@@ -29,6 +29,9 @@ Le premier lancement nécessite Internet pour télécharger les dépendances.
 
 Sous Windows, utiliser `gradlew.bat` à la place de `./gradlew`.
 L’APK de développement se trouve dans `app/build/outputs/apk/debug/app-debug.apk`.
+Sous Windows, si le projet est dans OneDrive, Gradle écrit les fichiers générés
+dans `%LOCALAPPDATA%\StageAcademy\build\<identifiant-du-projet>\app`.
+L’APK se trouve dans le sous-dossier `outputs\apk\debug` de ce dossier.
 
 ## Repérer les fichiers
 
