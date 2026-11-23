@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -23,126 +25,167 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import fr.stageacademy.quiz.ui.theme.QuizTheme
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 
-fun isCorrectAnswer(selectedAnswer: String, correctAnswer: String): Boolean {
-    return selectedAnswer == correctAnswer
-}
-// Android ouvre cette activité au lancement de l’application.
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             QuizTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    WelcomeScreen(modifier = Modifier.padding(innerPadding))
+                Scaffold(
+                    modifier = Modifier.fillMaxSize()
+                ) { innerPadding ->
+
+                    WelcomeScreen(
+                        modifier = Modifier.padding(innerPadding)
+                    )
                 }
             }
         }
     }
 }
 
-@Preview(showBackground = true, locale = "fr")
 @Composable
 fun WelcomeScreen(modifier: Modifier = Modifier) {
-    val questionText: String = "Quel outil garde l’historique du code ?"
-    val firstQuestionChoices: List<String> = listOf(
-        "Git",
-        "Android",
-        "Compose",
+    val firstQuestion: Question = Question(
+        text = "Quel outil garde l’historique du code ?",
+        choices = listOf("Git", "Android", "Compose"),
+        correctAnswer = "Git",
     )
-    val correctAnswer: String = "Git"
-    val secondQuestionText: String = "Quel composant Compose affiche du texte ?"
-    val secondQuestionChoices: List<String> = listOf(
-        "Button",
-        "Text",
-        "Column",
+
+    val secondQuestion: Question = Question(
+        text = "Quel composant Compose affiche du texte ?",
+        choices = listOf("Button", "Text", "Column"),
+        correctAnswer = "Text",
     )
-    val secondQuestionCorrectAnswer: String = "Text"
 
+    val thirdQuestion: Question = Question(
+        text = "Quel mot-clé déclare une fonction en Kotlin ?",
+        choices = listOf("fun", "val", "if"),
+        correctAnswer = "fun",
+    )
 
-    var firstFeedbackText: String by remember {
-        mutableStateOf("Choisis une réponse pour la question 1.")
+    val fourthQuestion: Question = Question(
+        text = "Quel type représente vrai ou faux ?",
+        choices = listOf("String", "Boolean", "Int"),
+        correctAnswer = "Boolean",
+    )
+
+    val questions: List<Question> = listOf(
+        firstQuestion,
+        secondQuestion,
+        thirdQuestion,
+        fourthQuestion,
+    )
+    val presenter: QuizContract = remember(questions) { QuizPresenter(questions) }
+    var displayedQuestionIndex: Int by remember(presenter) {
+        mutableStateOf(presenter.getCurrentQuestionIndex())
     }
-    var secondFeedbackText: String by remember {
-        mutableStateOf("Choisis une réponse pour la question 2.")
+    var isQuizFinished: Boolean by remember(presenter) {
+        mutableStateOf(presenter.isFinished())
+    }
+    var displayedScore: Int by remember(presenter) {
+        mutableStateOf(presenter.getScore())
     }
 
-fun checkFirstAnswer(selectedAnswer: String): Unit {
-    val isAnswerCorrect: Boolean = isCorrectAnswer(
-        selectedAnswer,
-        correctAnswer
-    )
-
-    if (isAnswerCorrect) {
-        firstFeedbackText = "Bonne réponse !"
-    } else {
-        firstFeedbackText = "Essaie encore."
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = stringResource(R.string.welcome_title),
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        Text(text = "Score : $displayedScore / ${questions.size}")
+        if (isQuizFinished) {
+            Text(text = "Quiz terminé")
+            Button(onClick = {
+                presenter.restart()
+                displayedQuestionIndex = presenter.getCurrentQuestionIndex()
+                isQuizFinished = presenter.isFinished()
+                displayedScore = presenter.getScore()
+            }) {
+                Text(text = "Recommencer")
+            }
+        } else {
+            Text(text = "Question ${displayedQuestionIndex + 1}")
+            val question: Question = presenter.getCurrentQuestion()
+            QuestionView(
+                question = question,
+                questionIndex = displayedQuestionIndex,
+                presenter = presenter,
+                onAnswerSubmitted = {
+                    displayedScore = presenter.getScore()
+                },
+                onNextQuestion = {
+                    presenter.goToNextQuestion()
+                    displayedQuestionIndex = presenter.getCurrentQuestionIndex()
+                    isQuizFinished = presenter.isFinished()
+                },
+            )
+        }
     }
 }
 
-    fun checkSecondAnswer(selectedAnswer: String): Unit {
-        val isAnswerCorrect: Boolean = isCorrectAnswer(
-            selectedAnswer,
-            secondQuestionCorrectAnswer,
-        )
+@Composable
+private fun QuestionView(
+    question: Question,
+    questionIndex: Int,
+    presenter: QuizContract,
+    onAnswerSubmitted: () -> Unit,
+    onNextQuestion: () -> Unit,
+) {
+    var feedbackText: String by remember(presenter, questionIndex) {
+        mutableStateOf("Choisis une réponse.")
+    }
+    var canGoToNextQuestion: Boolean by remember(presenter, questionIndex) {
+        mutableStateOf(presenter.canGoToNextQuestion())
+    }
+
+    fun checkAnswer(selectedAnswer: String): Unit {
+        val isAnswerCorrect: Boolean = presenter.submitAnswer(selectedAnswer)
         if (isAnswerCorrect) {
-            secondFeedbackText = "Bonne réponse !"
+            feedbackText = "Bonne réponse !"
         } else {
-            secondFeedbackText = "Essaie encore."
+            feedbackText = "Réponse incorrecte."
+        }
+        canGoToNextQuestion = presenter.canGoToNextQuestion()
+        onAnswerSubmitted()
+    }
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(text = question.text)
+        for (choice: String in question.choices) {
+            Button(
+                onClick = { checkAnswer(choice) },
+                enabled = !canGoToNextQuestion,
+            ) {
+                Text(text = choice)
+            }
+        }
+        Text(text = feedbackText)
+        Button(
+            onClick = onNextQuestion,
+            enabled = canGoToNextQuestion,
+        ) {
+            Text(text = "Question suivante")
         }
     }
+}
 
-Column(
-modifier = modifier
-.fillMaxSize()
-.verticalScroll(rememberScrollState())
-.padding(24.dp),
-
-verticalArrangement = Arrangement.spacedBy(16.dp),
-horizontalAlignment = Alignment.CenterHorizontally,
-) {
-    Text(
-        text = stringResource(R.string.welcome_title),
-        style = MaterialTheme.typography.headlineMedium,
-    )
-
-    // Question 1
-    Text(text = "Question 1")
-    Text(text = questionText)
-
-    Button(onClick = { checkFirstAnswer(firstQuestionChoices[0]) }) {
-        Text(text = firstQuestionChoices[0])
-    }
-
-    Button(onClick = { checkFirstAnswer(firstQuestionChoices[1]) }) {
-        Text(text = firstQuestionChoices[1])
-    }
-
-    Button(onClick = { checkFirstAnswer(firstQuestionChoices[2]) }) {
-        Text(text = firstQuestionChoices[2])
-    }
-
-    Text(text = firstFeedbackText)
-
-    // Question 2
-    Text(text = "Question 2")
-    Text(text = secondQuestionText)
-
-    Button(onClick = { checkSecondAnswer(secondQuestionChoices[0]) }) {
-        Text(text = secondQuestionChoices[0])
-    }
-
-    Button(onClick = { checkSecondAnswer(secondQuestionChoices[1]) }) {
-        Text(text = secondQuestionChoices[1])
-    }
-
-    Button(onClick = { checkSecondAnswer(secondQuestionChoices[2]) }) {
-        Text(text = secondQuestionChoices[2])
-    }
-
-    Text(text = secondFeedbackText)
+@Preview(showBackground = true, locale = "fr")
+@Composable
+fun WelcomeScreenPreview() {
+    QuizTheme {
+        WelcomeScreen()
     }
 }
