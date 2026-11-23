@@ -58,7 +58,7 @@ fun WelcomeScreen(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.bodyLarge,
         )
         Button(onClick = {
-            val nombreDeQuestions = 0
+            val nombreDeQuestions = 4
             val pointsParQuestion = 100 / nombreDeQuestions
             buttonText = "$pointsParQuestion points par question"
         }) {
