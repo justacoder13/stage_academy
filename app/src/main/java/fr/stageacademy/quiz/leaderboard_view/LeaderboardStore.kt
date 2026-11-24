@@ -5,6 +5,7 @@ import android.util.AtomicFile
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.IOException
 import java.util.Locale
 
@@ -34,9 +35,11 @@ internal class LeaderboardStore(context: Context) {
     }
 
     private fun readGames(): JSONObject {
-        if (!file.baseFile.exists()) return JSONObject()
         return try {
             JSONObject(file.readFully().toString(Charsets.UTF_8))
+        } catch (error: FileNotFoundException) {
+            if (file.baseFile.exists()) throw error
+            JSONObject()
         } catch (error: JSONException) {
             throw IOException("Invalid leaderboard", error)
         }

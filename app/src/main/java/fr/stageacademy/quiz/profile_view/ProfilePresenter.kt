@@ -18,6 +18,7 @@ internal class ProfilePresenter(context: Context, private val scope: CoroutineSc
     private val photos = PhotoFiles(context)
     private val store = ProfileStore(context)
     private var saved by mutableStateOf<SavedProfile?>(null)
+    val savedName: String get() = saved?.name.orEmpty()
     private var loading = false
 
     override var ready by mutableStateOf(false)

@@ -205,6 +205,7 @@ internal fun QuestionActions(
     isCorrect: Boolean,
     correctAnswer: String?,
     isLastQuestion: Boolean,
+    recording: Boolean = false,
     onContinue: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -226,9 +227,13 @@ internal fun QuestionActions(
     }
 
     QuizActionBar(
-        label = stringResource(if (isLastQuestion) R.string.show_results else R.string.next_question),
+        label = stringResource(when {
+            recording -> R.string.leaderboard_recording
+            isLastQuestion -> R.string.show_results
+            else -> R.string.next_question
+        }),
         onClick = onContinue,
-        enabled = canGoToNextQuestion,
+        enabled = canGoToNextQuestion && !recording,
     ) {
         Box(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
             if (!canGoToNextQuestion && visibility.isIdle) {
