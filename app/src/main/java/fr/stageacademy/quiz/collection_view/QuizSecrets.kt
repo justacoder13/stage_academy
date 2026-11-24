@@ -1,5 +1,6 @@
 package fr.stageacademy.quiz.collection_view
 
+import android.annotation.SuppressLint
 import android.os.SystemClock
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.BorderStroke
@@ -105,6 +106,7 @@ private enum class CollectionFilter(val label: Int) {
     Locked(R.string.collection_remaining),
 }
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 internal fun SecretCollection(
     foundSecrets: Set<QuizSecret>,
