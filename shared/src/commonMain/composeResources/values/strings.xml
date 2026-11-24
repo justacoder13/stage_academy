@@ -115,6 +115,8 @@
     <string name="show_corrections_description">Montre la bonne réponse après une erreur.</string>
     <string name="horizontal_answers">Réponses côte à côte</string>
     <string name="horizontal_answers_description">Active une rangée défilante. Désactive-la pour retrouver la colonne classique.</string>
+    <string name="sound_effects">Effets sonores</string>
+    <string name="sound_effects_description">Joue des petits sons pendant le quiz.</string>
     <string name="scroll_answers">Balaye les cartes pour voir tous les choix.</string>
     <string name="close">Fermer</string>
     <string name="welcome_secret_title">Le bug apprivoisé</string>

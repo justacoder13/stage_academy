@@ -62,6 +62,7 @@ private class AndroidQuizPreferences(private val preferences: SharedPreferences)
             ?: QuizAppearance.System,
         showCorrections = preferences.getBoolean("showCorrections", true),
         horizontalAnswers = preferences.getBoolean("horizontalAnswers", false),
+        soundEnabled = preferences.getBoolean("soundEnabled", true),
     )
 
     override fun secrets(): Set<QuizSecret> {
@@ -74,6 +75,7 @@ private class AndroidQuizPreferences(private val preferences: SharedPreferences)
             .putString("appearance", settings.appearance.name)
             .putBoolean("showCorrections", settings.showCorrections)
             .putBoolean("horizontalAnswers", settings.horizontalAnswers)
+            .putBoolean("soundEnabled", settings.soundEnabled)
             .apply()
     }
 

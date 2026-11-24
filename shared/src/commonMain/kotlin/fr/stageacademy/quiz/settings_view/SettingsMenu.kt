@@ -25,6 +25,8 @@ import fr.stageacademy.quiz.collection_view.QuizSecret
 import fr.stageacademy.quiz.collection_view.secretGesture
 import fr.stageacademy.quiz.shared_view.MenuButton
 import fr.stageacademy.quiz.shared_view.MenuCard
+import fr.stageacademy.quiz.shared_view.LocalQuizSound
+import fr.stageacademy.quiz.shared_view.QuizSound
 
 internal enum class QuizAppearance(val label: StringResource) {
     System(Res.string.appearance_system),
@@ -36,6 +38,7 @@ internal data class QuizSettings(
     val appearance: QuizAppearance = QuizAppearance.System,
     val showCorrections: Boolean = true,
     val horizontalAnswers: Boolean = false,
+    val soundEnabled: Boolean = true,
 )
 
 @Composable
@@ -47,6 +50,7 @@ internal fun SettingsMenu(
     onAbout: () -> Unit,
     onLeaderboard: () -> Unit,
 ) {
+    val sounds = LocalQuizSound.current
     MenuCard(
         title = stringResource(Res.string.settings),
         titleModifier = Modifier.secretGesture(QuizSecret.Semicolon, onDiscover, taps = 5),
@@ -63,7 +67,10 @@ internal fun SettingsMenu(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(
                         selected = selected,
                         role = Role.RadioButton,
-                        onClick = { onAppearanceSelected(appearance) },
+                        onClick = {
+                            sounds.play(QuizSound.Click)
+                            onAppearanceSelected(appearance)
+                        },
                     ),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -77,13 +84,28 @@ internal fun SettingsMenu(
             title = stringResource(Res.string.show_corrections),
             description = stringResource(Res.string.show_corrections_description),
             checked = settings.showCorrections,
-            onCheckedChange = { onSettingsChange(settings.copy(showCorrections = it)) },
+            onCheckedChange = {
+                sounds.play(QuizSound.Click)
+                onSettingsChange(settings.copy(showCorrections = it))
+            },
         )
         SettingsSwitch(
             title = stringResource(Res.string.horizontal_answers),
             description = stringResource(Res.string.horizontal_answers_description),
             checked = settings.horizontalAnswers,
-            onCheckedChange = { onSettingsChange(settings.copy(horizontalAnswers = it)) },
+            onCheckedChange = {
+                sounds.play(QuizSound.Click)
+                onSettingsChange(settings.copy(horizontalAnswers = it))
+            },
+        )
+        SettingsSwitch(
+            title = stringResource(Res.string.sound_effects),
+            description = stringResource(Res.string.sound_effects_description),
+            checked = settings.soundEnabled,
+            onCheckedChange = { enabled ->
+                onSettingsChange(settings.copy(soundEnabled = enabled))
+                if (enabled) sounds.play(QuizSound.Click)
+            },
         )
         MenuButton(label = stringResource(Res.string.leaderboard), onClick = onLeaderboard)
         MenuButton(label = stringResource(Res.string.about), onClick = onAbout)

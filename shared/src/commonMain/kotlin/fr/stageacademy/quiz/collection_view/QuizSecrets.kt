@@ -1,5 +1,7 @@
 package fr.stageacademy.quiz.collection_view
 
+import fr.stageacademy.quiz.shared_view.withQuizClickSound
+
 import fr.stageacademy.quiz.elapsedMillis
 import org.jetbrains.compose.resources.StringResource
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -172,7 +174,7 @@ internal fun SecretCollection(
         CollectionFilter.entries.forEach { option ->
             FilterChip(
                 selected = filter == option,
-                onClick = { filter = option },
+                onClick = withQuizClickSound { filter = option },
                 label = { Text(stringResource(option.label)) },
             )
         }
@@ -204,7 +206,7 @@ private fun SecretTile(secret: QuizSecret, found: Boolean, onOpen: () -> Unit, m
     val status = stringResource(if (found) Res.string.secret_found else Res.string.secret_locked)
     val colors = MaterialTheme.colorScheme
     Surface(
-        onClick = onOpen,
+        onClick = withQuizClickSound(onOpen),
         modifier = modifier.semantics { stateDescription = status },
         shape = RoundedCornerShape(20.dp),
         color = if (found) colors.primaryContainer else colors.surface,

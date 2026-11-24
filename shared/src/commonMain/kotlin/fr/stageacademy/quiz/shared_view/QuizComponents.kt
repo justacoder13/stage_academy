@@ -25,7 +25,7 @@ internal val ControlShape = RoundedCornerShape(16.dp)
 @Composable
 internal fun MenuButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     OutlinedButton(
-        onClick = onClick,
+        onClick = withQuizClickSound(onClick),
         enabled = enabled,
         modifier = modifier.fillMaxWidth().heightIn(min = 48.dp),
         shape = ControlShape,
@@ -74,7 +74,7 @@ internal fun QuizActionBar(
         ) {
             feedback?.invoke()
             Button(
-                onClick = onClick,
+                onClick = withQuizClickSound(onClick),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
                 enabled = enabled,
                 shape = ControlShape,

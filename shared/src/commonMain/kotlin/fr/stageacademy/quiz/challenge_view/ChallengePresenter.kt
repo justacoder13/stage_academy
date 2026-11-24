@@ -7,8 +7,13 @@ import androidx.compose.runtime.saveable.listSaver
 import fr.stageacademy.quiz.elapsedMillis
 import androidx.compose.runtime.setValue
 import fr.stageacademy.quiz.quiz_view.quizQuestions
+import fr.stageacademy.quiz.shared_view.QuizSound
+import fr.stageacademy.quiz.shared_view.QuizSoundPlayer
 
-internal class ChallengePresenter(initial: ChallengeState? = null) : ChallengeContract {
+internal class ChallengePresenter(
+    initial: ChallengeState? = null,
+    private val sounds: QuizSoundPlayer = QuizSoundPlayer {},
+) : ChallengeContract {
     private val game = ChallengeGame(::elapsedMillis, initial)
     override var state by mutableStateOf(game.state)
         private set
@@ -18,8 +23,22 @@ internal class ChallengePresenter(initial: ChallengeState? = null) : ChallengeCo
 
     override fun start(mode: ChallengeMode) = update { game.start(mode) }
     override fun tick() = update { game.tick() }
-    override fun answer(choice: String) = update { game.answer(choice) }
-    override fun next() = update { game.next() }
+    override fun answer(choice: String) {
+        val previous = state
+        update { game.answer(choice) }
+        if (previous?.choice == null && state?.choice != null) {
+            sounds.play(if (state?.choice == question?.correctAnswer) QuizSound.Correct else QuizSound.Incorrect)
+        }
+    }
+
+    override fun next() {
+        val previous = state
+        update { game.next() }
+        val result = state
+        if (previous?.end == null && result?.end == ChallengeEnd.Complete && result.score == result.order.size) {
+            sounds.play(QuizSound.Perfect)
+        }
+    }
     override fun close() = update { game.close() }
 
     private inline fun update(action: () -> Unit) {
@@ -29,7 +48,7 @@ internal class ChallengePresenter(initial: ChallengeState? = null) : ChallengeCo
     }
 
     companion object {
-        val saver = listSaver<ChallengePresenter, Any>(
+        fun saver(sounds: QuizSoundPlayer) = listSaver<ChallengePresenter, Any>(
             save = { presenter ->
                 presenter.state?.let { state ->
                     listOf(
@@ -50,7 +69,7 @@ internal class ChallengePresenter(initial: ChallengeState? = null) : ChallengeCo
                         ChallengeEnd.entries.find { it.name == saved[6] },
                     )
                 } else null
-                ChallengePresenter(state)
+                ChallengePresenter(state, sounds)
             },
         )
     }

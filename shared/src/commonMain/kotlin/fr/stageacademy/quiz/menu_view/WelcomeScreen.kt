@@ -1,5 +1,7 @@
 package fr.stageacademy.quiz.menu_view
 
+import fr.stageacademy.quiz.shared_view.withQuizClickSound
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -44,12 +46,12 @@ internal fun HomeTabs(profileSelected: Boolean, onHome: () -> Unit, onProfile: (
     PrimaryTabRow(selectedTabIndex = if (profileSelected) 1 else 0) {
         Tab(
             selected = !profileSelected,
-            onClick = onHome,
+            onClick = withQuizClickSound(onHome),
             text = { Text(stringResource(Res.string.home)) },
         )
         Tab(
             selected = profileSelected,
-            onClick = onProfile,
+            onClick = withQuizClickSound(onProfile),
             text = { Text(stringResource(Res.string.profile)) },
         )
     }

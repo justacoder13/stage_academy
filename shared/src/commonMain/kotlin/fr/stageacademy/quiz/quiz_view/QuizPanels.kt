@@ -58,6 +58,7 @@ import fr.stageacademy.quiz.shared_view.ControlShape
 import fr.stageacademy.quiz.shared_view.PanelShape
 import fr.stageacademy.quiz.shared_view.QuizActionBar
 import fr.stageacademy.quiz.shared_view.QuizTag
+import fr.stageacademy.quiz.shared_view.withQuizClickSound
 import fr.stageacademy.quiz.ui.theme.QuizForest
 import fr.stageacademy.quiz.ui.theme.QuizLime
 
@@ -80,7 +81,7 @@ internal fun QuizHeader(
             color = MaterialTheme.colorScheme.onBackground,
         )
         if (onPause != null) {
-            TextButton(onClick = onPause, modifier = Modifier.heightIn(min = 48.dp)) {
+            TextButton(onClick = withQuizClickSound(onPause), modifier = Modifier.heightIn(min = 48.dp)) {
                 Text(actionLabel)
             }
         }

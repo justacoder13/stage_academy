@@ -14,6 +14,8 @@ import fr.stageacademy.quiz.profile_view.ProfileIdentity
 import fr.stageacademy.quiz.quiz_view.QuizContract
 import fr.stageacademy.quiz.settings_view.QuizAppearance
 import fr.stageacademy.quiz.settings_view.QuizSettings
+import fr.stageacademy.quiz.shared_view.QuizSound
+import fr.stageacademy.quiz.shared_view.QuizSoundPlayer
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -43,6 +45,7 @@ internal class QuizNavigationPresenter(
     private val profile: ProfileIdentity,
     private val preferences: QuizPreferences,
     initial: QuizNavigationState = QuizNavigationState(),
+    private val sounds: QuizSoundPlayer = QuizSoundPlayer {},
 ) {
     private val discovery = SecretDiscovery()
     var navigation by mutableStateOf(initial)
@@ -120,6 +123,7 @@ internal class QuizNavigationPresenter(
         if (updated != foundSecrets) {
             foundSecrets = updated
             preferences.saveSecrets(updated)
+            sounds.play(QuizSound.Secret)
         }
     }
 
@@ -166,7 +170,9 @@ internal class QuizNavigationPresenter(
         val unanswered = round.selectedChoice == null
         round = quiz.submitAnswer(choice)
         if (unanswered && round.selectedChoice != null) {
-            unlock(discovery.answerNormal(round.questionIndex, round.isCorrect))
+            if (!unlock(discovery.answerNormal(round.questionIndex, round.isCorrect))) {
+                sounds.play(if (round.isCorrect) QuizSound.Correct else QuizSound.Incorrect)
+            }
         }
     }
 
@@ -174,7 +180,10 @@ internal class QuizNavigationPresenter(
         if (round.questionIndex + 1 == round.questionCount && round.selectedChoice != null) {
             leaderboard.completeGame(
                 navigation.roundId, navigation.playerName ?: guestName, round.score,
-                onRecorded = { round = quiz.goToNextQuestion() },
+                onRecorded = {
+                    round = quiz.goToNextQuestion()
+                    if (round.score == round.questionCount) sounds.play(QuizSound.Perfect)
+                },
                 onFailure = { navigation = navigation.copy(leaderboardError = true) },
             )
         } else {
@@ -220,6 +229,7 @@ internal class QuizNavigationPresenter(
             leaderboard: LeaderboardPresenter,
             profile: ProfileIdentity,
             preferences: QuizPreferences,
+            sounds: QuizSoundPlayer = QuizSoundPlayer {},
         ) = mapSaver(
             save = { presenter: QuizNavigationPresenter ->
                 with(presenter.navigation) {
@@ -252,7 +262,7 @@ internal class QuizNavigationPresenter(
                     visitedSettingsDuringQuiz = saved["visitedSettings"] == true,
                     visitedCollectionDuringPause = saved["visitedCollection"] == true,
                 )
-                QuizNavigationPresenter(quiz, challenge, leaderboard, profile, preferences, state)
+                QuizNavigationPresenter(quiz, challenge, leaderboard, profile, preferences, state, sounds)
             },
         )
     }

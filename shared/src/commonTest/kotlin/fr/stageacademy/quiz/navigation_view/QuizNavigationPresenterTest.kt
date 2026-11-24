@@ -14,6 +14,8 @@ import fr.stageacademy.quiz.quiz_view.QuizPresenterSaver
 import fr.stageacademy.quiz.quiz_view.quizQuestions
 import fr.stageacademy.quiz.settings_view.QuizAppearance
 import fr.stageacademy.quiz.settings_view.QuizSettings
+import fr.stageacademy.quiz.shared_view.QuizSound
+import fr.stageacademy.quiz.shared_view.QuizSoundPlayer
 import kotlinx.coroutines.CoroutineScope
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.Test
@@ -101,5 +103,39 @@ class QuizNavigationPresenterTest {
         assertEquals(QuizAppearance.System, preferences.settings().appearance)
         assertEquals(QuizSecret.Chameleon, presenter.navigation.selectedSecret)
         assertEquals(setOf(QuizSecret.Chameleon), preferences.secrets())
+    }
+
+    @Test
+    fun onlyAcceptedAnswersAndNewDiscoveriesPlaySounds() {
+        val heard = mutableListOf<QuizSound>()
+        val presenter = QuizNavigationPresenter(
+            QuizPresenter(quizQuestions), ChallengePresenter(), leaderboard, profile, preferences,
+            sounds = QuizSoundPlayer { heard.add(it) },
+        )
+        presenter.startNormal("Camille")
+        val first = assertNotNull(presenter.round.question)
+        presenter.answerNormal(first.correctAnswer)
+        presenter.answerNormal(first.correctAnswer)
+        presenter.continueNormal("Joueur")
+        val second = assertNotNull(presenter.round.question)
+        presenter.answerNormal(second.choices.first { it != second.correctAnswer })
+        presenter.discoverSecret(QuizSecret.Bug)
+        presenter.discoverSecret(QuizSecret.Bug)
+        assertEquals(listOf(QuizSound.Correct, QuizSound.Incorrect, QuizSound.Secret), heard)
+    }
+
+    @Test
+    fun aCompletedPerfectChallengePlaysItsSoundOnlyOnce() {
+        val heard = mutableListOf<QuizSound>()
+        val challenge = ChallengePresenter(sounds = QuizSoundPlayer { heard.add(it) })
+        challenge.start(ChallengeMode.Surprise)
+        repeat(5) {
+            val answer = assertNotNull(challenge.question).correctAnswer
+            challenge.answer(answer)
+            challenge.answer(answer)
+            challenge.next()
+        }
+        challenge.next()
+        assertEquals(List(5) { QuizSound.Correct } + QuizSound.Perfect, heard)
     }
 }

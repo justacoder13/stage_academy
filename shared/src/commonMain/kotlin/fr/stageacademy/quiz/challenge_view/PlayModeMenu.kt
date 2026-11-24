@@ -1,5 +1,7 @@
 package fr.stageacademy.quiz.challenge_view
 
+import fr.stageacademy.quiz.shared_view.withQuizClickSound
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
@@ -66,7 +68,7 @@ private fun PlayModeCard(title: String, description: String, delayMillis: Int, o
             slideInVertically(tween(240, delayMillis)) { it / 8 },
     ) {
         Surface(
-            onClick = onClick,
+            onClick = withQuizClickSound(onClick),
             modifier = Modifier.fillMaxWidth().semantics { role = Role.Button },
             shape = ControlShape,
             color = colors.surface,

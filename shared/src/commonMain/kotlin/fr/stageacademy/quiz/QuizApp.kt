@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,23 +24,34 @@ import fr.stageacademy.quiz.quiz_view.QuizPresenter
 import fr.stageacademy.quiz.quiz_view.QuizPresenterSaver
 import fr.stageacademy.quiz.quiz_view.quizQuestions
 import fr.stageacademy.quiz.settings_view.QuizAppearance
+import fr.stageacademy.quiz.shared_view.LocalQuizSound
+import fr.stageacademy.quiz.shared_view.QuizSoundPlayer
+import fr.stageacademy.quiz.shared_view.rememberQuizSoundPlayer
 import fr.stageacademy.quiz.splash_view.SplashScreen
 import fr.stageacademy.quiz.ui.theme.QuizTheme
 
 @Composable
 fun QuizApp(onDarkThemeChanged: (Boolean) -> Unit = {}) {
     val preferences = rememberQuizPreferences()
+    val soundPlayer = rememberQuizSoundPlayer()
+    val sounds = remember(preferences, soundPlayer) {
+        QuizSoundPlayer { sound ->
+            if (preferences.settings().soundEnabled) soundPlayer.play(sound)
+        }
+    }
     val quiz = rememberSaveable(saver = QuizPresenterSaver) { QuizPresenter(quizQuestions) }
-    val challenge = rememberSaveable(saver = ChallengePresenter.saver) { ChallengePresenter() }
+    val challenge = rememberSaveable(sounds, saver = ChallengePresenter.saver(sounds)) {
+        ChallengePresenter(sounds = sounds)
+    }
     val scope = rememberCoroutineScope()
     val profile = rememberProfile(scope)
     val leaderboardStore = rememberLeaderboardStore()
     val leaderboard = remember(leaderboardStore, scope) { LeaderboardPresenter(leaderboardStore, scope) }
     val presenter = rememberSaveable(
-        quiz, challenge, leaderboard, profile, preferences,
-        saver = QuizNavigationPresenter.saver(quiz, challenge, leaderboard, profile, preferences),
+        quiz, challenge, leaderboard, profile, preferences, sounds,
+        saver = QuizNavigationPresenter.saver(quiz, challenge, leaderboard, profile, preferences, sounds),
     ) {
-        QuizNavigationPresenter(quiz, challenge, leaderboard, profile, preferences)
+        QuizNavigationPresenter(quiz, challenge, leaderboard, profile, preferences, sounds = sounds)
     }
 
     var splashFinished by rememberSaveable { mutableStateOf(false) }
@@ -58,7 +70,9 @@ fun QuizApp(onDarkThemeChanged: (Boolean) -> Unit = {}) {
             modifier = Modifier.fillMaxSize(),
             contentWindowInsets = WindowInsets.safeDrawing,
         ) { innerPadding ->
-            QuizNavigation(presenter, profile, modifier = Modifier.padding(innerPadding))
+            CompositionLocalProvider(LocalQuizSound provides sounds) {
+                QuizNavigation(presenter, profile, modifier = Modifier.padding(innerPadding))
+            }
         }
     }
 }

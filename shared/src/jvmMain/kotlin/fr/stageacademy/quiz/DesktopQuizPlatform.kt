@@ -136,6 +136,7 @@ private class DesktopQuizPreferences(private val preferences: Preferences) : Qui
             ?: QuizAppearance.System,
         showCorrections = preferences.getBoolean("showCorrections", true),
         horizontalAnswers = preferences.getBoolean("horizontalAnswers", false),
+        soundEnabled = preferences.getBoolean("soundEnabled", true),
     )
 
     override fun secrets(): Set<QuizSecret> {
@@ -147,6 +148,7 @@ private class DesktopQuizPreferences(private val preferences: Preferences) : Qui
         preferences.put("appearance", settings.appearance.name)
         preferences.putBoolean("showCorrections", settings.showCorrections)
         preferences.putBoolean("horizontalAnswers", settings.horizontalAnswers)
+        preferences.putBoolean("soundEnabled", settings.soundEnabled)
     }
 
     override fun saveSecrets(secrets: Set<QuizSecret>) {
