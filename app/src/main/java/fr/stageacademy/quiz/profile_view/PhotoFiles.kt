@@ -10,39 +10,34 @@ import android.os.Build
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 
 internal class PhotoFiles(context: Context) {
     private val directory = File(context.cacheDir, "quiz_photos")
-    private val latestPhoto = File(directory, "latest.jpg")
-    private val history = context.getSharedPreferences("quiz_photo", Context.MODE_PRIVATE)
 
     fun prepareCapture(): File {
         directory.mkdirs()
         return File.createTempFile("capture-", ".jpg", directory)
     }
 
-    fun saveCapture(pendingPhoto: File): Boolean {
+    fun isValidCapture(pendingPhoto: File): Boolean {
         if (pendingPhoto.length() == 0L) return false
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(pendingPhoto.absolutePath, bounds)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return false
-
-        Files.move(pendingPhoto.toPath(), latestPhoto.toPath(), REPLACE_EXISTING)
-        history.edit().putBoolean("hasSavedPhoto", true).apply()
-        return true
+        return bounds.outWidth > 0 && bounds.outHeight > 0
     }
 
-    fun loadPreview(): Bitmap? {
-        if (!latestPhoto.isFile) {
-            if (history.getBoolean("hasSavedPhoto", false)) throw FileNotFoundException("Photo no longer in cache")
-            return null
-        }
+    fun previousDraft(): File? = File(directory, "latest.jpg").takeIf(::isValidCapture)
+
+    fun discardDraft(photo: File?) {
+        photo?.takeIf { it.parentFile == directory }?.delete()
+    }
+
+    fun loadPreview(photo: File): Bitmap {
+        if (!photo.isFile) throw FileNotFoundException("Photo no longer available")
 
         val maxSize = 1200
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            return ImageDecoder.decodeBitmap(ImageDecoder.createSource(latestPhoto)) { decoder, info, _ ->
+            return ImageDecoder.decodeBitmap(ImageDecoder.createSource(photo)) { decoder, info, _ ->
                 val size = info.size
                 val largestSide = maxOf(size.width, size.height)
                 if (largestSide > maxSize) {
@@ -55,7 +50,7 @@ internal class PhotoFiles(context: Context) {
             }
         }
 
-        val path = latestPhoto.absolutePath
+        val path = photo.absolutePath
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(path, options)
         val largestSide = maxOf(options.outWidth, options.outHeight)

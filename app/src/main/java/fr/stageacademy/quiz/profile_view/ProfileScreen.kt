@@ -13,34 +13,50 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -51,6 +67,7 @@ import fr.stageacademy.quiz.R
 import fr.stageacademy.quiz.shared_view.ControlShape
 import fr.stageacademy.quiz.shared_view.MenuButton
 import fr.stageacademy.quiz.shared_view.MenuCard
+import fr.stageacademy.quiz.shared_view.QuizActionBar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -69,19 +86,28 @@ private enum class PhotoStatus(val message: Int) {
 }
 
 @Composable
-internal fun ProfileScreen(isProfileSelected: () -> Boolean) {
+internal fun ProfileScreen(editor: ProfileEditor, isProfileSelected: () -> Boolean) {
     val context = LocalContext.current
     val activity = LocalActivity.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val files = remember(context.applicationContext) { PhotoFiles(context.applicationContext) }
+    val files = editor.photos
     var status by remember { mutableStateOf<PhotoStatus?>(null) }
     var cameraOpen by remember { mutableStateOf(false) }
     var permissionPending by remember { mutableStateOf(false) }
     var capture by remember { mutableStateOf<ImageCapture?>(null) }
     var pendingPhoto by remember { mutableStateOf<File?>(null) }
-    var previewRevision by remember { mutableIntStateOf(0) }
-    var preview by remember { mutableStateOf<Bitmap?>(null) }
+    val photo = editor.photo
+    var preview by remember(photo) { mutableStateOf<Bitmap?>(null) }
     val previewRequester = remember { BringIntoViewRequester() }
+    val nameRequester = remember { BringIntoViewRequester() }
+
+    LaunchedEffect(editor) { editor.load() }
+    LaunchedEffect(editor.nameInvalid) {
+        if (editor.nameInvalid) {
+            withFrameNanos { }
+            nameRequester.bringIntoView()
+        }
+    }
 
     fun closeCamera(result: PhotoStatus) {
         cameraOpen = false
@@ -111,15 +137,15 @@ internal fun ProfileScreen(isProfileSelected: () -> Boolean) {
         }
     }
 
-    LaunchedEffect(files, previewRevision) {
+    LaunchedEffect(files, photo) {
         try {
-            preview = withContext(Dispatchers.IO) { files.loadPreview() }
+            preview = photo?.let { withContext(Dispatchers.IO) { files.loadPreview(it) } }
         } catch (_: FileNotFoundException) {
             preview = null
-            status = PhotoStatus.Missing
+            if (editor.photo == photo) status = PhotoStatus.Missing
         } catch (_: IOException) {
             preview = null
-            status = PhotoStatus.Failed
+            if (editor.photo == photo) status = PhotoStatus.Failed
         }
     }
 
@@ -156,14 +182,9 @@ internal fun ProfileScreen(isProfileSelected: () -> Boolean) {
                 output.delete()
                 return
             }
-            val committed = try {
-                saved && files.saveCapture(output)
-            } catch (_: IOException) {
-                false
-            }
-            if (committed) {
+            if (saved && files.isValidCapture(output)) {
+                editor.selectPhoto(output)
                 closeCamera(PhotoStatus.Captured)
-                previewRevision++
             } else {
                 output.delete()
                 closeCamera(PhotoStatus.Failed)
@@ -180,75 +201,139 @@ internal fun ProfileScreen(isProfileSelected: () -> Boolean) {
         )
     }
 
-    MenuCard(title = stringResource(R.string.photo_title)) {
-        if (cameraOpen) {
-            LiveCameraPreview(
-                canUseCamera = ::canUseCamera,
-                onReady = { capture = it },
-                onUnavailable = { closeCamera(PhotoStatus.Unavailable) },
-            )
-            val cameraMessage = when {
-                pendingPhoto != null -> R.string.photo_saving
-                capture == null -> R.string.photo_preparing
-                else -> null
-            }
-            if (cameraMessage != null) PhotoMessage(stringResource(cameraMessage))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MenuButton(
-                    label = stringResource(R.string.photo_close_camera),
-                    onClick = { closeCamera(PhotoStatus.Canceled) },
-                    modifier = Modifier.weight(1f),
-                )
-                PhotoButton(
-                    label = stringResource(R.string.photo_take),
-                    enabled = capture != null && pendingPhoto == null,
-                    onClick = ::takePhoto,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        } else {
-            Text(
-                text = stringResource(R.string.photo_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            preview?.let { bitmap ->
-                Image(
-                    bitmap = remember(bitmap) { bitmap.asImageBitmap() },
-                    contentDescription = stringResource(R.string.photo_preview),
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp)
-                        .bringIntoViewRequester(previewRequester).clip(ControlShape),
-                    contentScale = ContentScale.Fit,
-                )
-                if (status == PhotoStatus.Captured) {
-                    LaunchedEffect(bitmap) {
-                        withFrameNanos { }
-                        previewRequester.bringIntoView()
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            when {
+                !editor.ready -> PhotoMessage(stringResource(R.string.profile_loading))
+                cameraOpen -> MenuCard(title = stringResource(R.string.photo_title)) {
+                    LiveCameraPreview(
+                        canUseCamera = ::canUseCamera,
+                        onReady = { capture = it },
+                        onUnavailable = { closeCamera(PhotoStatus.Unavailable) },
+                    )
+                    val cameraMessage = when {
+                        pendingPhoto != null -> R.string.photo_saving
+                        capture == null -> R.string.photo_preparing
+                        else -> null
+                    }
+                    if (cameraMessage != null) PhotoMessage(stringResource(cameraMessage))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        MenuButton(
+                            label = stringResource(R.string.photo_close_camera),
+                            onClick = { closeCamera(PhotoStatus.Canceled) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        PhotoButton(
+                            label = stringResource(R.string.photo_take),
+                            enabled = capture != null && pendingPhoto == null,
+                            onClick = ::takePhoto,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                else -> {
+                    MenuCard(title = stringResource(R.string.profile_player)) {
+                        OutlinedTextField(
+                            value = editor.name,
+                            onValueChange = editor::editName,
+                            modifier = Modifier.fillMaxWidth().bringIntoViewRequester(nameRequester),
+                            enabled = !editor.saving,
+                            label = { Text(stringResource(R.string.profile_name)) },
+                            singleLine = true,
+                            isError = editor.nameInvalid,
+                            supportingText = if (editor.nameInvalid) {
+                                { Text(stringResource(R.string.profile_name_required)) }
+                            } else null,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        )
+                    }
+                    MenuCard(title = stringResource(R.string.photo_title)) {
+                        Text(
+                            text = stringResource(R.string.photo_description),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        ProfilePhoto(preview, previewRequester, status == PhotoStatus.Captured)
+                        status?.let { PhotoMessage(stringResource(it.message)) }
+                        PhotoButton(
+                            label = stringResource(if (photo == null) R.string.photo_open_camera else R.string.photo_retake),
+                            enabled = !permissionPending && !editor.saving,
+                            onClick = {
+                                if (!permissionPending && !editor.saving && isProfileSelected()) {
+                                    status = null
+                                    if (context.hasCameraPermission()) {
+                                        cameraOpen = true
+                                    } else {
+                                        permissionPending = true
+                                        permissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                }
+                            },
+                        )
+                        if (photo != null) {
+                            MenuButton(
+                                label = stringResource(R.string.profile_remove_photo),
+                                onClick = {
+                                    editor.selectPhoto(null)
+                                    status = null
+                                },
+                                enabled = !editor.saving,
+                            )
+                        }
+                        if (status == PhotoStatus.Blocked) {
+                            MenuButton(label = stringResource(R.string.photo_open_settings), onClick = {
+                                settingsLauncher.launch(
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
+                                )
+                            })
+                        }
                     }
                 }
             }
-            status?.let { PhotoMessage(stringResource(it.message)) }
-            PhotoButton(
-                label = stringResource(if (preview == null) R.string.photo_open_camera else R.string.photo_retake),
-                enabled = !permissionPending,
-                onClick = {
-                    if (!permissionPending && isProfileSelected()) {
-                        status = null
-                        if (context.hasCameraPermission()) {
-                            cameraOpen = true
-                        } else {
-                            permissionPending = true
-                            permissionLauncher.launch(Manifest.permission.CAMERA)
-                        }
-                    }
-                },
-            )
-            if (status == PhotoStatus.Blocked) {
-                MenuButton(label = stringResource(R.string.photo_open_settings), onClick = {
-                    settingsLauncher.launch(
-                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
-                    )
-                })
+        }
+        if (!cameraOpen) {
+            QuizActionBar(
+                label = stringResource(if (editor.saving) R.string.profile_saving else R.string.profile_save),
+                onClick = editor::save,
+                enabled = editor.ready && !editor.saving,
+            ) {
+                val message = editor.message ?: R.string.profile_unsaved.takeIf { editor.hasChanges && !editor.nameInvalid }
+                message?.let { PhotoMessage(stringResource(it)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfilePhoto(bitmap: Bitmap?, requester: BringIntoViewRequester, newlyCaptured: Boolean) {
+    if (bitmap != null) {
+        Image(
+            bitmap = remember(bitmap) { bitmap.asImageBitmap() },
+            contentDescription = stringResource(R.string.photo_preview),
+            modifier = Modifier.fillMaxWidth().heightIn(max = 280.dp)
+                .bringIntoViewRequester(requester).clip(ControlShape),
+            contentScale = ContentScale.Fit,
+        )
+        if (newlyCaptured) {
+            LaunchedEffect(bitmap) {
+                withFrameNanos { }
+                requester.bringIntoView()
+            }
+        }
+    } else {
+        val tint = MaterialTheme.colorScheme.onPrimaryContainer
+        val background = MaterialTheme.colorScheme.primaryContainer
+        val description = stringResource(R.string.profile_default_avatar)
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Canvas(
+                Modifier.size(80.dp).clip(CircleShape).background(background)
+                    .semantics { contentDescription = description },
+            ) {
+                drawCircle(tint, size.width * 0.15f, Offset(center.x, size.height * 0.37f))
+                drawOval(tint, Offset(size.width * 0.22f, size.height * 0.56f), Size(size.width * 0.56f, size.height * 0.34f))
             }
         }
     }

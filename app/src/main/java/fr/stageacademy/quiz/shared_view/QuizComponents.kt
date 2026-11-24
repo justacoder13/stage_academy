@@ -23,9 +23,10 @@ internal val PanelShape = RoundedCornerShape(28.dp)
 internal val ControlShape = RoundedCornerShape(16.dp)
 
 @Composable
-internal fun MenuButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun MenuButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     OutlinedButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.fillMaxWidth().heightIn(min = 48.dp),
         shape = ControlShape,
     ) {

@@ -30,12 +30,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -48,6 +50,7 @@ import fr.stageacademy.quiz.menu_view.LeaveQuizDialog
 import fr.stageacademy.quiz.menu_view.HomeTabs
 import fr.stageacademy.quiz.menu_view.PauseMenu
 import fr.stageacademy.quiz.menu_view.WelcomePanel
+import fr.stageacademy.quiz.profile_view.ProfileEditor
 import fr.stageacademy.quiz.profile_view.ProfileScreen
 import fr.stageacademy.quiz.quiz_view.QuestionActions
 import fr.stageacademy.quiz.quiz_view.QuestionPanel
@@ -155,6 +158,9 @@ private fun QuizNavigation(
     val presenter = rememberSaveable(saver = PresenterSaver) { QuizPresenter(quizQuestions) }
     var state by remember(presenter) { mutableStateOf(presenter.getState()) }
     var page by rememberSaveable { mutableStateOf(QuizPage.Start) }
+    val appContext = LocalContext.current.applicationContext
+    val profileScope = rememberCoroutineScope()
+    val profileEditor = remember(appContext, profileScope) { ProfileEditor(appContext, profileScope) }
     var quizStarted by rememberSaveable { mutableStateOf(false) }
     var menuOrigin by rememberSaveable { mutableStateOf(QuizPage.Start) }
     var confirmLeave by rememberSaveable { mutableStateOf(false) }
@@ -223,7 +229,9 @@ private fun QuizNavigation(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentAlignment = if (page == QuizPage.Start) Alignment.Center else Alignment.TopCenter,
             ) {
-                key(page, state.questionIndex) {
+                if (page == QuizPage.Profile) {
+                    ProfileScreen(editor = profileEditor, isProfileSelected = { page == QuizPage.Profile })
+                } else key(page, state.questionIndex) {
                     Column(
                         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                             .padding(horizontal = 16.dp, vertical = 16.dp),
@@ -231,7 +239,7 @@ private fun QuizNavigation(
                     ) {
                         when (page) {
                             QuizPage.Start -> WelcomePanel(state.questionCount, ::discoverSecret)
-                            QuizPage.Profile -> ProfileScreen(isProfileSelected = { page == QuizPage.Profile })
+                            QuizPage.Profile -> Unit
                             QuizPage.Paused -> PauseMenu(
                                 state = state,
                                 keyAvailable = visitedSettingsDuringQuiz && !settings.showCorrections &&
