@@ -47,6 +47,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import fr.stageacademy.quiz.about_view.AboutScreen
+import fr.stageacademy.quiz.challenge_view.ChallengePresenter
+import fr.stageacademy.quiz.challenge_view.ChallengeScreen
 import fr.stageacademy.quiz.collection_view.QuizSecret
 import fr.stageacademy.quiz.collection_view.SecretCollection
 import fr.stageacademy.quiz.collection_view.SecretEntryDialog
@@ -75,7 +77,7 @@ import fr.stageacademy.quiz.shared_view.QuizActionBar
 import fr.stageacademy.quiz.ui.theme.QuizTheme
 import java.util.UUID
 
-private enum class QuizPage { Start, Profile, Playing, Paused, Settings, Collection, About, Leaderboard }
+private enum class QuizPage { Start, Profile, Playing, Paused, Settings, Collection, About, Leaderboard, Challenges }
 
 private val PresenterSaver = Saver<QuizContract, Bundle>(
     save = { presenter ->
@@ -167,6 +169,7 @@ private fun QuizNavigation(
     val presenter = rememberSaveable(saver = PresenterSaver) { QuizPresenter(quizQuestions) }
     var state by remember(presenter) { mutableStateOf(presenter.getState()) }
     var page by rememberSaveable { mutableStateOf(QuizPage.Start) }
+    val challenge = rememberSaveable(saver = ChallengePresenter.saver) { ChallengePresenter() }
     val appContext = LocalContext.current.applicationContext
     val profileScope = rememberCoroutineScope()
     val profilePresenter = remember(appContext, profileScope) { ProfilePresenter(appContext, profileScope) }
@@ -213,6 +216,10 @@ private fun QuizNavigation(
         page = when (page) {
             QuizPage.Start -> QuizPage.Start
             QuizPage.Profile -> QuizPage.Start
+            QuizPage.Challenges -> if (challenge.state == null) QuizPage.Start else {
+                challenge.close()
+                QuizPage.Challenges
+            }
             QuizPage.Playing -> if (question == null) QuizPage.Start else QuizPage.Paused
             QuizPage.Paused -> QuizPage.Playing
             QuizPage.Settings, QuizPage.Collection, QuizPage.Leaderboard -> menuOrigin
@@ -251,7 +258,7 @@ private fun QuizNavigation(
             ) {
                 if (page == QuizPage.Profile) {
                     ProfileScreen(editor = profilePresenter, isProfileSelected = { page == QuizPage.Profile })
-                } else key(page, state.questionIndex) {
+                } else key(page, state.questionIndex, challenge.state?.let { Triple(it.mode, it.index, it.end) }) {
                     Column(
                         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                             .padding(horizontal = 16.dp, vertical = 16.dp),
@@ -277,6 +284,7 @@ private fun QuizNavigation(
                                 onAbout = { page = QuizPage.About },
                             )
                             QuizPage.About -> AboutScreen()
+                            QuizPage.Challenges -> ChallengeScreen(challenge)
                             QuizPage.Leaderboard -> LeaderboardScreen(
                                 leaderboard.rankings, leaderboard.loading, leaderboard.failed, leaderboard::load,
                             )
@@ -328,7 +336,10 @@ private fun QuizNavigation(
                         }
                     },
                     feedback = {
-                        MenuButton(stringResource(R.string.leaderboard), { openMenu(QuizPage.Leaderboard) })
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            MenuButton(stringResource(R.string.leaderboard), { openMenu(QuizPage.Leaderboard) }, Modifier.weight(1f))
+                            MenuButton(stringResource(R.string.challenges), { page = QuizPage.Challenges }, Modifier.weight(1f))
+                        }
                     },
                 )
                 QuizPage.Profile -> Unit
@@ -336,7 +347,7 @@ private fun QuizNavigation(
                     label = stringResource(R.string.resume_quiz),
                     onClick = { page = QuizPage.Playing },
                 )
-                QuizPage.Settings, QuizPage.Collection, QuizPage.About, QuizPage.Leaderboard -> QuizActionBar(
+                QuizPage.Settings, QuizPage.Collection, QuizPage.About, QuizPage.Leaderboard, QuizPage.Challenges -> QuizActionBar(
                     label = stringResource(R.string.back),
                     onClick = ::goBack,
                 )
