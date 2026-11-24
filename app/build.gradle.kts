@@ -4,18 +4,6 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-val localAppData = providers.environmentVariable("LOCALAPPDATA").orNull
-val checkout = rootDir.canonicalFile.toPath()
-val isInOneDrive = listOf("OneDrive", "OneDriveConsumer", "OneDriveCommercial")
-    .mapNotNull { providers.environmentVariable(it).orNull?.takeIf(String::isNotBlank) }
-    .any { checkout.startsWith(file(it).canonicalFile.toPath()) }
-
-if (localAppData != null && isInOneDrive) {
-    // Keep generated files outside OneDrive so Gradle can replace them during builds.
-    val checkoutId = Integer.toHexString(checkout.hashCode())
-    layout.buildDirectory.set(file("$localAppData/StageAcademy/build/$checkoutId/app"))
-}
-
 android {
     namespace = "fr.stageacademy.quiz"
     compileSdk = 36
@@ -45,6 +33,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":shared"))
     val cameraXVersion = "1.4.2"
     implementation(platform("androidx.compose:compose-bom:2025.05.01"))
     implementation("androidx.activity:activity-compose:1.10.1")

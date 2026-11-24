@@ -1,10 +1,8 @@
 # Stage Academy — Mon premier quiz
 
-Une petite application Android en Kotlin et Jetpack Compose, pour découvrir la
-programmation pendant un stage de troisième.
-
-Pour le moment, elle affiche un accueil statique. Les questions, les réponses et
-le score seront ajoutés progressivement avec le stagiaire.
+Un quiz en français pour découvrir la programmation pendant un stage de
+troisième. Android et le bureau utilisent les mêmes écrans, animations et règles
+grâce à Kotlin Multiplatform et Compose Multiplatform.
 
 ## Ouvrir le projet
 
@@ -25,29 +23,36 @@ Le premier lancement nécessite Internet pour télécharger les dépendances.
 ```sh
 ./gradlew :app:assembleDebug
 ./gradlew :app:lintDebug
+./gradlew :shared:jvmTest
+./gradlew :desktop:installDist
 ```
 
 Sous Windows, utiliser `gradlew.bat` à la place de `./gradlew`.
+Pour jouer sur ordinateur avec un JDK 17 ou supérieur, lancer
+`gradlew.bat :desktop:run` (Windows) ou `./gradlew :desktop:run` (macOS/Linux).
+Le bouton galerie ouvre le sélecteur de fichiers sur ordinateur. Le bouton de
+prise de vue ouvre la webcam si elle est disponible. Chaque appareil conserve
+son propre profil, ses points, ses réglages et ses secrets.
 L’APK de développement se trouve dans `app/build/outputs/apk/debug/app-debug.apk`.
 Sous Windows, si le projet est dans OneDrive, Gradle écrit les fichiers générés
-dans `%LOCALAPPDATA%\StageAcademy\build\<identifiant-du-projet>\app`.
-L’APK se trouve dans le sous-dossier `outputs\apk\debug` de ce dossier.
+dans `%LOCALAPPDATA%\StageAcademy\build\<identifiant-du-projet>\<module>`.
+Dans le dossier du module `app`, l’APK se trouve sous `outputs\apk\debug`.
 
 ## Repérer les fichiers
 
-- `settings.gradle.kts` : déclare le seul module du projet, `app`.
+- `shared/src/commonMain` contient la navigation, le thème, les écrans et leurs
+  presenters dans les packages `*_view`. Les textes partagés sont dans
+  `shared/src/commonMain/composeResources/values/strings.xml`.
+- `shared/src/androidMain` relie l’application à CameraX, au sélecteur Android
+  et aux données locales Android existantes.
+- `shared/src/jvmMain` crée la fenêtre bureau et relie l’application à la
+  webcam, au sélecteur de fichiers et aux données locales du bureau.
+- `shared/src/jvmShared` contient le stockage du profil commun aux deux cibles JVM.
+- `app` lance le quiz sur Android et `desktop` le lance sur ordinateur.
+- `settings.gradle.kts` déclare ces trois modules.
 - `build.gradle.kts` : fixe les versions des outils Android et Kotlin.
 - `app/build.gradle.kts` : configure l’application et ses bibliothèques Compose.
 - `app/src/main/AndroidManifest.xml` : déclare l’activité de lancement.
-- `app/src/main/java/fr/stageacademy/quiz/MainActivity.kt` : ouvre l’application et
-  assemble les écrans et gère les retours entre eux.
-- `quiz_view` : questions, contrat, presenter et écrans de jeu et de résultat.
-- `menu_view`, `settings_view`, `collection_view` et `about_view` : écrans de
-  l’accueil, de la pause, des paramètres, de la collection et de présentation.
-- `shared_view` : boutons, cartes et barre d’actions réutilisés par les écrans.
-- `app/src/main/java/fr/stageacademy/quiz/ui/theme/Theme.kt` : applique le thème
-  clair ou sombre.
-- `app/src/main/res/values/strings.xml` : contient les textes affichés.
 - `.gitignore` : écarte de Git les builds, les fichiers IDE locaux et les clés.
 - `gradlew`, `gradlew.bat`, `gradle/wrapper/` : lancent la même version de Gradle
   pour tout le monde ; ces fichiers doivent être conservés dans Git.
@@ -55,7 +60,7 @@ L’APK se trouve dans le sous-dossier `outputs\apk\debug` de ce dossier.
 ## Versions retenues
 
 Gradle 8.11.1, plugin Android 8.10.1, Kotlin et compilateur Compose 2.3.21,
-Compose BOM 2025.05.01, Activity Compose 1.10.1, SDK de compilation/cible 36.
+Compose Multiplatform 1.9.3, Activity Compose 1.10.1, SDK de compilation/cible 36.
 Les bibliothèques sont fixées à des versions stables ; il ne s’agit pas d’une
 sélection automatique des dernières versions.
 
