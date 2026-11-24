@@ -1,4 +1,4 @@
-package fr.stageacademy.quiz
+package fr.stageacademy.quiz.collection_view
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.shape.RoundedCornerShape

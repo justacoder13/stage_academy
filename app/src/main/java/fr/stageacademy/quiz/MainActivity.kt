@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -38,66 +40,28 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import fr.stageacademy.quiz.about_view.AboutScreen
+import fr.stageacademy.quiz.collection_view.QuizSecret
+import fr.stageacademy.quiz.collection_view.SecretCollection
+import fr.stageacademy.quiz.collection_view.SecretEntryDialog
+import fr.stageacademy.quiz.menu_view.LeaveQuizDialog
+import fr.stageacademy.quiz.menu_view.PauseMenu
+import fr.stageacademy.quiz.menu_view.WelcomePanel
+import fr.stageacademy.quiz.quiz_view.QuestionActions
+import fr.stageacademy.quiz.quiz_view.QuestionPanel
+import fr.stageacademy.quiz.quiz_view.QuizContract
+import fr.stageacademy.quiz.quiz_view.QuizHeader
+import fr.stageacademy.quiz.quiz_view.QuizPresenter
+import fr.stageacademy.quiz.quiz_view.ResultPanel
+import fr.stageacademy.quiz.quiz_view.quizQuestions
+import fr.stageacademy.quiz.settings_view.QuizAppearance
+import fr.stageacademy.quiz.settings_view.QuizSettings
+import fr.stageacademy.quiz.settings_view.SettingsMenu
+import fr.stageacademy.quiz.shared_view.MenuButton
+import fr.stageacademy.quiz.shared_view.QuizActionBar
 import fr.stageacademy.quiz.ui.theme.QuizTheme
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.tween
 
-private val quizQuestions = listOf(
-    Question(
-        text = "Quel outil garde l’historique du code ?",
-        choices = listOf("Git", "Android", "Compose"),
-        correctAnswer = "Git",
-    ),
-    Question(
-        text = "Quel composant Compose affiche du texte ?",
-        choices = listOf("Button", "Text", "Column"),
-        correctAnswer = "Text",
-    ),
-    Question(
-        text = "Quel mot-clé déclare une fonction en Kotlin ?",
-        choices = listOf("fun", "val", "if"),
-        correctAnswer = "fun",
-    ),
-    Question(
-        text = "Quel type représente vrai ou faux ?",
-        choices = listOf("String", "Boolean", "Int"),
-        correctAnswer = "Boolean",
-    ),
-    Question(
-        text = "Quelle commande Git montre les fichiers modifiés ?",
-        choices = listOf("git log", "git status", "git init"),
-        correctAnswer = "git status",
-    ),
-    Question(
-        text = "Quelle commande Git enregistre les modifications préparées dans l’historique ?",
-        choices = listOf("git commit", "git status", "git branch"),
-        correctAnswer = "git commit",
-    ),
-    Question(
-        text = "Quel composant Compose place les éléments côte à côte ?",
-        choices = listOf("Box", "Column", "Row"),
-        correctAnswer = "Row",
-    ),
-    Question(
-        text = "Quel composant Compose sert à créer un bouton sur lequel appuyer ?",
-        choices = listOf("Text", "Button", "Column"),
-        correctAnswer = "Button",
-    ),
-    Question(
-        text = "En Kotlin, quel mot-clé déclare une variable dont on peut changer la valeur ?",
-        choices = listOf("val", "fun", "var"),
-        correctAnswer = "var",
-    ),
-    Question(
-        text = "En Kotlin, quel symbole vérifie si deux valeurs sont égales ?",
-        choices = listOf("==", "=", "!="),
-        correctAnswer = "==",
-    ),
-)
-
-private enum class QuizPage { Start, Playing, Paused, Settings, Collection }
+private enum class QuizPage { Start, Playing, Paused, Settings, Collection, About }
 
 private val PresenterSaver = Saver<QuizContract, Bundle>(
     save = { presenter ->
@@ -128,6 +92,7 @@ class MainActivity : ComponentActivity() {
             appearance = QuizAppearance.entries.find { it.name == preferences.getString("appearance", null) }
                 ?: QuizAppearance.System,
             showCorrections = preferences.getBoolean("showCorrections", true),
+            horizontalAnswers = preferences.getBoolean("horizontalAnswers", false),
         )
         val savedSecretNames = preferences.getStringSet("foundSecrets", emptySet()).orEmpty()
         val initialSecrets = QuizSecret.entries.filter { it.name in savedSecretNames }.toSet()
@@ -151,7 +116,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     contentWindowInsets = WindowInsets.safeDrawing,
                 ) { innerPadding ->
-                    QuizScreen(
+                    QuizNavigation(
                         settings = settings,
                         foundSecrets = foundSecrets,
                         onSecretFound = { secret ->
@@ -166,6 +131,7 @@ class MainActivity : ComponentActivity() {
                             preferences.edit()
                                 .putString("appearance", updated.appearance.name)
                                 .putBoolean("showCorrections", updated.showCorrections)
+                                .putBoolean("horizontalAnswers", updated.horizontalAnswers)
                                 .apply()
                         },
                         modifier = Modifier.padding(innerPadding),
@@ -177,7 +143,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun QuizScreen(
+private fun QuizNavigation(
     settings: QuizSettings,
     onSettingsChange: (QuizSettings) -> Unit,
     foundSecrets: Set<QuizSecret>,
@@ -193,6 +159,11 @@ private fun QuizScreen(
     var visitedSettingsDuringQuiz by rememberSaveable { mutableStateOf(false) }
     val question = state.question
     val questionNumber = state.questionIndex + 1
+    val questionProgress = animateFloatAsState(
+        targetValue = if (question == null) 1f else questionNumber.toFloat() / state.questionCount,
+        animationSpec = tween(durationMillis = 350),
+        label = "Quiz progress",
+    )
     val colors = MaterialTheme.colorScheme
 
     fun openMenu(target: QuizPage) {
@@ -211,14 +182,17 @@ private fun QuizScreen(
         visitedSettingsDuringQuiz = false
     }
 
-    BackHandler(enabled = page != QuizPage.Start) {
+    fun goBack() {
         page = when (page) {
             QuizPage.Start -> QuizPage.Start
             QuizPage.Playing -> if (question == null) QuizPage.Start else QuizPage.Paused
             QuizPage.Paused -> QuizPage.Playing
             QuizPage.Settings, QuizPage.Collection -> menuOrigin
+            QuizPage.About -> QuizPage.Settings
         }
     }
+
+    BackHandler(enabled = page != QuizPage.Start, onBack = ::goBack)
 
     Box(
         modifier = modifier
@@ -254,7 +228,13 @@ private fun QuizScreen(
                                 onLeave = { confirmLeave = true },
                                 onDiscover = ::discoverSecret,
                             )
-                            QuizPage.Settings -> SettingsMenu(settings, onSettingsChange, ::discoverSecret)
+                            QuizPage.Settings -> SettingsMenu(
+                                settings = settings,
+                                onSettingsChange = onSettingsChange,
+                                onDiscover = ::discoverSecret,
+                                onAbout = { page = QuizPage.About },
+                            )
+                            QuizPage.About -> AboutScreen()
                             QuizPage.Collection -> SecretCollection(
                                 foundSecrets = foundSecrets,
                                 onOpen = { selectedSecret = it },
@@ -268,9 +248,11 @@ private fun QuizScreen(
                                         question = question,
                                         questionNumber = questionNumber,
                                         questionCount = state.questionCount,
+                                        progress = { questionProgress.value },
                                         score = state.score,
                                         selectedChoice = state.selectedChoice,
                                         isCorrect = state.isCorrect,
+                                        horizontalAnswers = settings.horizontalAnswers,
                                         onChoice = { state = presenter.submitAnswer(it) },
                                         onDiscover = ::discoverSecret,
                                     )
@@ -299,9 +281,9 @@ private fun QuizScreen(
                     label = stringResource(R.string.resume_quiz),
                     onClick = { page = QuizPage.Playing },
                 )
-                QuizPage.Settings, QuizPage.Collection -> QuizActionBar(
+                QuizPage.Settings, QuizPage.Collection, QuizPage.About -> QuizActionBar(
                     label = stringResource(R.string.back),
-                    onClick = { page = menuOrigin },
+                    onClick = ::goBack,
                 )
                 QuizPage.Playing -> {
                     if (question == null) {
@@ -346,6 +328,6 @@ private fun QuizScreen(
 @Composable
 private fun WelcomeScreenPreview() {
     QuizTheme {
-        QuizScreen(settings = QuizSettings(), onSettingsChange = {}, foundSecrets = emptySet(), onSecretFound = {})
+        QuizNavigation(settings = QuizSettings(), onSettingsChange = {}, foundSecrets = emptySet(), onSecretFound = {})
     }
 }

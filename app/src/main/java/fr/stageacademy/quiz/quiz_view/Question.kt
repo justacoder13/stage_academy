@@ -1,4 +1,4 @@
-package fr.stageacademy.quiz
+package fr.stageacademy.quiz.quiz_view
 
 data class Question(
     val text: String,

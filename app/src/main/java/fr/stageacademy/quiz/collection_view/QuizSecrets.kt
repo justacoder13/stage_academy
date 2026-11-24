@@ -1,4 +1,4 @@
-package fr.stageacademy.quiz
+package fr.stageacademy.quiz.collection_view
 
 import android.os.SystemClock
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import fr.stageacademy.quiz.R
 
 internal enum class QuizSecret(val title: Int, val description: Int, val hint: Int) {
     Bug(R.string.welcome_secret_title, R.string.welcome_secret_message, R.string.hint_bug),

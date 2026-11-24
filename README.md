@@ -40,7 +40,11 @@ L’APK se trouve dans le sous-dossier `outputs\apk\debug` de ce dossier.
 - `app/build.gradle.kts` : configure l’application et ses bibliothèques Compose.
 - `app/src/main/AndroidManifest.xml` : déclare l’activité de lancement.
 - `app/src/main/java/fr/stageacademy/quiz/MainActivity.kt` : ouvre l’application et
-  décrit son écran d’accueil. `WelcomeScreenPreview` permet de le prévisualiser.
+  assemble les écrans et gère les retours entre eux.
+- `quiz_view` : questions, contrat, presenter et écrans de jeu et de résultat.
+- `menu_view`, `settings_view`, `collection_view` et `about_view` : écrans de
+  l’accueil, de la pause, des paramètres, de la collection et de présentation.
+- `shared_view` : boutons, cartes et barre d’actions réutilisés par les écrans.
 - `app/src/main/java/fr/stageacademy/quiz/ui/theme/Theme.kt` : applique le thème
   clair ou sombre.
 - `app/src/main/res/values/strings.xml` : contient les textes affichés.

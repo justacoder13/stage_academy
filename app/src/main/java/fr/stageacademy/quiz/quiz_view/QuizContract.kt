@@ -1,4 +1,4 @@
-package fr.stageacademy.quiz
+package fr.stageacademy.quiz.quiz_view
 
 interface QuizContract {
     fun getState(): QuizState

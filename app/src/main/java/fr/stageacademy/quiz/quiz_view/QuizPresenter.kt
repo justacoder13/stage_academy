@@ -1,4 +1,4 @@
-package fr.stageacademy.quiz
+package fr.stageacademy.quiz.quiz_view
 
 class QuizPresenter private constructor(
     private val questions: List<Question>,
