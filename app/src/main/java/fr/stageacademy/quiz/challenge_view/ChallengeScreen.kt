@@ -1,37 +1,21 @@
 package fr.stageacademy.quiz.challenge_view
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import fr.stageacademy.quiz.R
+import fr.stageacademy.quiz.quiz_view.QuestionActions
+import fr.stageacademy.quiz.quiz_view.QuestionPanel
+import fr.stageacademy.quiz.quiz_view.ResultPanel
 import fr.stageacademy.quiz.shared_view.MenuButton
-import fr.stageacademy.quiz.shared_view.MenuCard
+import fr.stageacademy.quiz.shared_view.QuizActionBar
+import fr.stageacademy.quiz.shared_view.QuizTag
 import kotlinx.coroutines.delay
 
 @Composable
-internal fun ChallengeScreen(presenter: ChallengeContract) {
-    val game = presenter.state
-    if (game == null) {
-        ChallengeMode.entries.forEach { mode ->
-            MenuCard(title = stringResource(mode.title)) {
-                Text(stringResource(mode.description))
-                MenuButton(stringResource(R.string.challenge_play_mode, stringResource(mode.title)), { presenter.start(mode) })
-            }
-        }
-        return
-    }
-
+internal fun ChallengeScreen(presenter: ChallengeContract, horizontalAnswers: Boolean, progress: () -> Float) {
+    val game = presenter.state ?: return
     val question = presenter.question ?: return
     LaunchedEffect(game.deadline, game.end) {
         while (presenter.state?.deadline != null && presenter.state?.end == null) {
@@ -39,47 +23,67 @@ internal fun ChallengeScreen(presenter: ChallengeContract) {
             delay(100)
         }
     }
-    val feedback = when {
-        game.choice == null -> null
-        game.choice == question.correctAnswer -> stringResource(R.string.correct_feedback)
-        else -> stringResource(R.string.incorrect_feedback, question.correctAnswer)
+
+    val result = when (game.end) {
+        ChallengeEnd.Complete -> R.string.challenge_complete
+        ChallengeEnd.TimeUp -> R.string.challenge_time_up
+        ChallengeEnd.WrongAnswer -> R.string.challenge_streak_end
+        null -> null
     }
-    val end = game.end
-    if (end != null) {
-        val title = when (end) {
-            ChallengeEnd.Complete -> R.string.challenge_complete
-            ChallengeEnd.TimeUp -> R.string.challenge_time_up
-            ChallengeEnd.WrongAnswer -> R.string.challenge_streak_end
-        }
-        MenuCard(title = stringResource(title)) {
-            Text(stringResource(R.string.final_score, game.score, game.order.size), style = MaterialTheme.typography.displaySmall)
-            if (end == ChallengeEnd.WrongAnswer && feedback != null) Text(feedback)
-            MenuButton(stringResource(R.string.restart_quiz), { presenter.start(game.mode) })
-            MenuButton(stringResource(R.string.challenge_choose_another), presenter::close)
-        }
+    if (result != null) {
+        ResultPanel(
+            score = game.score,
+            questionCount = game.order.size,
+            title = stringResource(result),
+            detail = if (game.end == ChallengeEnd.WrongAnswer) {
+                stringResource(R.string.incorrect_feedback, question.correctAnswer)
+            } else null,
+        )
     } else {
-        MenuCard(title = stringResource(game.mode.title)) {
-            Text(stringResource(R.string.question_progress, game.index + 1, game.order.size))
-            Text(stringResource(R.string.quiz_score, game.score, game.order.size))
-            if (game.deadline != null) {
-                Text(
-                    stringResource(R.string.challenge_seconds, presenter.secondsLeft),
-                    color = if (presenter.secondsLeft <= 10) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
-            Text(question.text, style = MaterialTheme.typography.titleLarge)
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                question.choices.forEach { choice ->
-                    MenuButton(choice, { presenter.answer(choice) }, enabled = game.choice == null)
+        QuestionPanel(
+            question = question,
+            questionNumber = game.index + 1,
+            questionCount = game.order.size,
+            progress = progress,
+            score = game.score,
+            selectedChoice = game.choice,
+            isCorrect = game.choice == question.correctAnswer,
+            horizontalAnswers = horizontalAnswers,
+            onChoice = presenter::answer,
+            status = if (game.deadline != null) {
+                {
+                    val colors = MaterialTheme.colorScheme
+                    val nearlyOver = presenter.secondsLeft <= 10
+                    QuizTag(
+                        text = stringResource(R.string.challenge_seconds, presenter.secondsLeft),
+                        color = if (nearlyOver) colors.errorContainer else colors.primaryContainer,
+                        contentColor = if (nearlyOver) colors.onErrorContainer else colors.onPrimaryContainer,
+                    )
                 }
-            }
-            if (feedback != null) {
-                Text(feedback, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                Button(onClick = presenter::next, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(if (game.index == game.order.lastIndex) R.string.show_results else R.string.next_question))
-                }
-            }
-        }
+            } else null,
+        )
+    }
+}
+
+@Composable
+internal fun ChallengeActions(presenter: ChallengeContract) {
+    val game = presenter.state ?: return
+    if (game.end != null) {
+        QuizActionBar(
+            label = stringResource(R.string.restart_quiz),
+            onClick = { presenter.start(game.mode) },
+            secondaryAction = {
+                MenuButton(stringResource(R.string.challenge_choose_another), presenter::close)
+            },
+        )
+    } else {
+        val answer = presenter.question?.correctAnswer
+        QuestionActions(
+            selectedChoice = game.choice,
+            isCorrect = game.choice != null && game.choice == answer,
+            correctAnswer = answer,
+            isLastQuestion = game.index == game.order.lastIndex,
+            onContinue = presenter::next,
+        )
     }
 }

@@ -48,7 +48,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import fr.stageacademy.quiz.about_view.AboutScreen
 import fr.stageacademy.quiz.challenge_view.ChallengePresenter
+import fr.stageacademy.quiz.challenge_view.ChallengeActions
 import fr.stageacademy.quiz.challenge_view.ChallengeScreen
+import fr.stageacademy.quiz.challenge_view.PlayModeMenu
 import fr.stageacademy.quiz.collection_view.QuizSecret
 import fr.stageacademy.quiz.collection_view.SecretCollection
 import fr.stageacademy.quiz.collection_view.SecretEntryDialog
@@ -170,6 +172,7 @@ private fun QuizNavigation(
     var state by remember(presenter) { mutableStateOf(presenter.getState()) }
     var page by rememberSaveable { mutableStateOf(QuizPage.Start) }
     val challenge = rememberSaveable(saver = ChallengePresenter.saver) { ChallengePresenter() }
+    val challengeGame = challenge.state
     val appContext = LocalContext.current.applicationContext
     val profileScope = rememberCoroutineScope()
     val profilePresenter = remember(appContext, profileScope) { ProfilePresenter(appContext, profileScope) }
@@ -190,6 +193,11 @@ private fun QuizNavigation(
         targetValue = if (question == null) 1f else questionNumber.toFloat() / state.questionCount,
         animationSpec = tween(durationMillis = 350),
         label = "Quiz progress",
+    )
+    val challengeProgress = animateFloatAsState(
+        targetValue = challengeGame?.let { (it.index + 1f) / it.order.size } ?: 0f,
+        animationSpec = tween(durationMillis = 350),
+        label = "Challenge progress",
     )
     val colors = MaterialTheme.colorScheme
 
@@ -222,8 +230,8 @@ private fun QuizNavigation(
             }
             QuizPage.Playing -> if (question == null) QuizPage.Start else QuizPage.Paused
             QuizPage.Paused -> QuizPage.Playing
-            QuizPage.Settings, QuizPage.Collection, QuizPage.Leaderboard -> menuOrigin
-            QuizPage.About -> QuizPage.Settings
+            QuizPage.Settings, QuizPage.Collection -> menuOrigin
+            QuizPage.About, QuizPage.Leaderboard -> QuizPage.Settings
         }
     }
 
@@ -251,6 +259,13 @@ private fun QuizNavigation(
                     modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
                     onPause = if (question != null && !leaderboard.recording) ({ page = QuizPage.Paused }) else null,
                 )
+            } else if (page == QuizPage.Challenges && challengeGame != null) {
+                QuizHeader(
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
+                    title = stringResource(challengeGame.mode.title),
+                    onPause = ::goBack,
+                    actionLabel = stringResource(R.string.back),
+                )
             }
             Box(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -258,7 +273,7 @@ private fun QuizNavigation(
             ) {
                 if (page == QuizPage.Profile) {
                     ProfileScreen(editor = profilePresenter, isProfileSelected = { page == QuizPage.Profile })
-                } else key(page, state.questionIndex, challenge.state?.let { Triple(it.mode, it.index, it.end) }) {
+                } else key(page, state.questionIndex, challengeGame?.let { Triple(it.mode, it.index, it.end) }) {
                     Column(
                         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                             .padding(horizontal = 16.dp, vertical = 16.dp),
@@ -282,9 +297,29 @@ private fun QuizNavigation(
                                 onSettingsChange = onSettingsChange,
                                 onDiscover = ::discoverSecret,
                                 onAbout = { page = QuizPage.About },
+                                onLeaderboard = { page = QuizPage.Leaderboard },
                             )
                             QuizPage.About -> AboutScreen()
-                            QuizPage.Challenges -> ChallengeScreen(challenge)
+                            QuizPage.Challenges -> {
+                                if (challengeGame == null) {
+                                    val canResumeNormal = quizStarted && question != null
+                                    PlayModeMenu(
+                                        canResumeNormal = canResumeNormal,
+                                        onNormal = {
+                                            if (canResumeNormal) {
+                                                page = QuizPage.Playing
+                                            } else {
+                                                profilePresenter.load()
+                                                leaderboard.load()
+                                                choosingPlayer = true
+                                            }
+                                        },
+                                        onChallenge = challenge::start,
+                                    )
+                                } else {
+                                    ChallengeScreen(challenge, settings.horizontalAnswers, progress = { challengeProgress.value })
+                                }
+                            }
                             QuizPage.Leaderboard -> LeaderboardScreen(
                                 leaderboard.rankings, leaderboard.loading, leaderboard.failed, leaderboard::load,
                             )
@@ -319,26 +354,12 @@ private fun QuizNavigation(
 
             when (page) {
                 QuizPage.Start -> QuizActionBar(
-                    label = stringResource(if (quizStarted && question != null) R.string.resume_quiz else R.string.start_quiz),
-                    onClick = {
-                        if (quizStarted && question != null) {
-                            page = QuizPage.Playing
-                        } else {
-                            profilePresenter.load()
-                            leaderboard.load()
-                            choosingPlayer = true
-                        }
-                    },
+                    label = stringResource(R.string.play),
+                    onClick = { page = QuizPage.Challenges },
                     secondaryAction = {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            MenuButton(stringResource(R.string.settings), { openMenu(QuizPage.Settings) }, Modifier.weight(1f))
                             MenuButton(stringResource(R.string.secret_collection), { openMenu(QuizPage.Collection) }, Modifier.weight(1f))
-                        }
-                    },
-                    feedback = {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            MenuButton(stringResource(R.string.leaderboard), { openMenu(QuizPage.Leaderboard) }, Modifier.weight(1f))
-                            MenuButton(stringResource(R.string.challenges), { page = QuizPage.Challenges }, Modifier.weight(1f))
+                            MenuButton(stringResource(R.string.settings), { openMenu(QuizPage.Settings) }, Modifier.weight(1f))
                         }
                     },
                 )
@@ -347,20 +368,24 @@ private fun QuizNavigation(
                     label = stringResource(R.string.resume_quiz),
                     onClick = { page = QuizPage.Playing },
                 )
-                QuizPage.Settings, QuizPage.Collection, QuizPage.About, QuizPage.Leaderboard, QuizPage.Challenges -> QuizActionBar(
+                QuizPage.Settings, QuizPage.Collection, QuizPage.About, QuizPage.Leaderboard -> QuizActionBar(
                     label = stringResource(R.string.back),
                     onClick = ::goBack,
                 )
+                QuizPage.Challenges -> {
+                    if (challengeGame == null) {
+                        QuizActionBar(label = stringResource(R.string.back), onClick = ::goBack)
+                    } else {
+                        ChallengeActions(challenge)
+                    }
+                }
                 QuizPage.Playing -> {
                     if (question == null) {
                         QuizActionBar(
                             label = stringResource(R.string.restart_quiz),
                             onClick = ::resetQuiz,
                             secondaryAction = {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    MenuButton(stringResource(R.string.main_menu), { page = QuizPage.Start }, Modifier.weight(1f))
-                                    MenuButton(stringResource(R.string.leaderboard), { openMenu(QuizPage.Leaderboard) }, Modifier.weight(1f))
-                                }
+                                MenuButton(stringResource(R.string.main_menu), { page = QuizPage.Start })
                             },
                         )
                     } else {

@@ -73,16 +73,16 @@ internal enum class QuizSecret(val title: Int, val description: Int, val hint: I
 @Composable
 internal fun Modifier.secretGesture(
     secret: QuizSecret,
-    onDiscover: (QuizSecret) -> Unit,
+    onDiscover: ((QuizSecret) -> Unit)?,
     taps: Int? = null,
     enabled: Boolean = true,
 ): Modifier {
     val discover by rememberUpdatedState(onDiscover)
-    if (!enabled) return this
+    if (!enabled || onDiscover == null) return this
 
     return pointerInput(secret, taps) {
         if (taps == null) {
-            detectTapGestures(onLongPress = { discover(secret) })
+            detectTapGestures(onLongPress = { discover?.invoke(secret) })
         } else {
             var tapCount = 0
             var lastTapAt = 0L
@@ -92,7 +92,7 @@ internal fun Modifier.secretGesture(
                 lastTapAt = now
                 if (tapCount == taps) {
                     tapCount = 0
-                    discover(secret)
+                    discover?.invoke(secret)
                 }
             })
         }

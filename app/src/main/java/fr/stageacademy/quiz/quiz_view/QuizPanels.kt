@@ -57,21 +57,26 @@ import fr.stageacademy.quiz.ui.theme.QuizForest
 import fr.stageacademy.quiz.ui.theme.QuizLime
 
 @Composable
-internal fun QuizHeader(modifier: Modifier = Modifier, onPause: (() -> Unit)? = null) {
+internal fun QuizHeader(
+    modifier: Modifier = Modifier,
+    onPause: (() -> Unit)? = null,
+    title: String = stringResource(R.string.welcome_title),
+    actionLabel: String = stringResource(R.string.pause_quiz),
+) {
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            text = stringResource(R.string.welcome_title),
+            text = title,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.titleMedium.copy(fontFamily = FontFamily.Serif),
             color = MaterialTheme.colorScheme.onBackground,
         )
         if (onPause != null) {
             TextButton(onClick = onPause, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text(stringResource(R.string.pause_quiz))
+                Text(actionLabel)
             }
         }
     }
@@ -88,7 +93,8 @@ internal fun QuestionPanel(
     isCorrect: Boolean,
     horizontalAnswers: Boolean,
     onChoice: (String) -> Unit,
-    onDiscover: (QuizSecret) -> Unit,
+    onDiscover: ((QuizSecret) -> Unit)? = null,
+    status: (@Composable () -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     Surface(shape = PanelShape) {
@@ -125,6 +131,7 @@ internal fun QuestionPanel(
                     gapSize = 0.dp,
                     drawStopIndicator = {},
                 )
+                status?.invoke()
             }
             val promptVisibility = remember { MutableTransitionState(false).apply { targetState = true } }
             AnimatedVisibility(
@@ -335,7 +342,13 @@ private fun ChoiceLetter(letter: Char, color: Color) {
 }
 
 @Composable
-internal fun ResultPanel(score: Int, questionCount: Int, onDiscover: (QuizSecret) -> Unit) {
+internal fun ResultPanel(
+    score: Int,
+    questionCount: Int,
+    onDiscover: ((QuizSecret) -> Unit)? = null,
+    title: String = stringResource(R.string.quiz_finished),
+    detail: String? = null,
+) {
     Surface(shape = PanelShape, color = QuizForest, contentColor = Color.White) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 36.dp),
@@ -343,7 +356,7 @@ internal fun ResultPanel(score: Int, questionCount: Int, onDiscover: (QuizSecret
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                text = stringResource(R.string.quiz_finished),
+                text = title,
                 modifier = Modifier.semantics { heading() }.secretGesture(QuizSecret.Flag, onDiscover),
                 style = MaterialTheme.typography.headlineMedium,
             )
@@ -358,6 +371,9 @@ internal fun ResultPanel(score: Int, questionCount: Int, onDiscover: (QuizSecret
                 modifier = Modifier.secretGesture(QuizSecret.Balance, onDiscover, taps = 2, enabled = score == 5 || score == questionCount / 2),
                 style = MaterialTheme.typography.bodyLarge,
             )
+            if (detail != null) {
+                Text(detail, style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
 }

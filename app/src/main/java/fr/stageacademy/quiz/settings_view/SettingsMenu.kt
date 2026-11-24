@@ -42,6 +42,7 @@ internal fun SettingsMenu(
     onSettingsChange: (QuizSettings) -> Unit,
     onDiscover: (QuizSecret) -> Unit,
     onAbout: () -> Unit,
+    onLeaderboard: () -> Unit,
 ) {
     MenuCard(
         title = stringResource(R.string.settings),
@@ -81,6 +82,7 @@ internal fun SettingsMenu(
             checked = settings.horizontalAnswers,
             onCheckedChange = { onSettingsChange(settings.copy(horizontalAnswers = it)) },
         )
+        MenuButton(label = stringResource(R.string.leaderboard), onClick = onLeaderboard)
         MenuButton(label = stringResource(R.string.about), onClick = onAbout)
     }
 }
