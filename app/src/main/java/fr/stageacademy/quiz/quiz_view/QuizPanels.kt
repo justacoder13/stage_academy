@@ -114,6 +114,7 @@ internal fun QuestionPanel(
                         text = stringResource(R.string.quiz_score, score, questionCount),
                         color = colors.primaryContainer,
                         contentColor = colors.onPrimaryContainer,
+                        modifier = Modifier.secretGesture(QuizSecret.Medal, onDiscover, taps = 2, enabled = isCorrect),
                     )
                 }
                 LinearProgressIndicator(
@@ -130,9 +131,21 @@ internal fun QuestionPanel(
                 visibleState = promptVisibility,
                 enter = fadeIn(tween(durationMillis = 220)) + slideInVertically(tween(durationMillis = 220)) { it / 5 },
             ) {
+                val bonusSecret = when (questionNumber) {
+                    11 -> QuizSecret.Branch
+                    12 -> QuizSecret.Magnifier
+                    13 -> QuizSecret.Pixel
+                    14 -> QuizSecret.Lantern
+                    15 -> QuizSecret.Crown
+                    else -> null
+                }
+                val promptModifier = Modifier.semantics { heading() }
                 Text(
                     text = question.text,
-                    modifier = Modifier.semantics { heading() },
+                    modifier = if (bonusSecret == null) promptModifier else promptModifier.secretGesture(
+                        bonusSecret, onDiscover, taps = if (bonusSecret == QuizSecret.Crown) null else questionNumber - 9,
+                        enabled = isCorrect,
+                    ),
                     style = MaterialTheme.typography.headlineMedium,
                 )
             }
@@ -326,7 +339,7 @@ internal fun ResultPanel(score: Int, questionCount: Int, onDiscover: (QuizSecret
         ) {
             Text(
                 text = stringResource(R.string.quiz_finished),
-                modifier = Modifier.semantics { heading() },
+                modifier = Modifier.semantics { heading() }.secretGesture(QuizSecret.Flag, onDiscover),
                 style = MaterialTheme.typography.headlineMedium,
             )
             Text(
@@ -337,7 +350,7 @@ internal fun ResultPanel(score: Int, questionCount: Int, onDiscover: (QuizSecret
             )
             Text(
                 text = stringResource(R.string.final_score_label),
-                modifier = Modifier.secretGesture(QuizSecret.Balance, onDiscover, taps = 2, enabled = score * 2 == questionCount),
+                modifier = Modifier.secretGesture(QuizSecret.Balance, onDiscover, taps = 2, enabled = score == 5 || score == questionCount / 2),
                 style = MaterialTheme.typography.bodyLarge,
             )
         }

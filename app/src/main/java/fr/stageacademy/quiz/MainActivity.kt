@@ -50,7 +50,7 @@ import fr.stageacademy.quiz.menu_view.LeaveQuizDialog
 import fr.stageacademy.quiz.menu_view.HomeTabs
 import fr.stageacademy.quiz.menu_view.PauseMenu
 import fr.stageacademy.quiz.menu_view.WelcomePanel
-import fr.stageacademy.quiz.profile_view.ProfileEditor
+import fr.stageacademy.quiz.profile_view.ProfilePresenter
 import fr.stageacademy.quiz.profile_view.ProfileScreen
 import fr.stageacademy.quiz.quiz_view.QuestionActions
 import fr.stageacademy.quiz.quiz_view.QuestionPanel
@@ -160,7 +160,7 @@ private fun QuizNavigation(
     var page by rememberSaveable { mutableStateOf(QuizPage.Start) }
     val appContext = LocalContext.current.applicationContext
     val profileScope = rememberCoroutineScope()
-    val profileEditor = remember(appContext, profileScope) { ProfileEditor(appContext, profileScope) }
+    val profilePresenter = remember(appContext, profileScope) { ProfilePresenter(appContext, profileScope) }
     var quizStarted by rememberSaveable { mutableStateOf(false) }
     var menuOrigin by rememberSaveable { mutableStateOf(QuizPage.Start) }
     var confirmLeave by rememberSaveable { mutableStateOf(false) }
@@ -230,7 +230,7 @@ private fun QuizNavigation(
                 contentAlignment = if (page == QuizPage.Start) Alignment.Center else Alignment.TopCenter,
             ) {
                 if (page == QuizPage.Profile) {
-                    ProfileScreen(editor = profileEditor, isProfileSelected = { page == QuizPage.Profile })
+                    ProfileScreen(editor = profilePresenter, isProfileSelected = { page == QuizPage.Profile })
                 } else key(page, state.questionIndex) {
                     Column(
                         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())

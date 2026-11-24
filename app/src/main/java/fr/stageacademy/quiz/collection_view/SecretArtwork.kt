@@ -1,9 +1,12 @@
 package fr.stageacademy.quiz.collection_view
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.Text
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -19,6 +22,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
 internal fun SecretArtwork(secret: QuizSecret, modifier: Modifier = Modifier) {
@@ -35,15 +39,19 @@ internal fun SecretArtwork(secret: QuizSecret, modifier: Modifier = Modifier) {
         QuizSecret.Key -> Color(0xFFC5DDA9)
         QuizSecret.Rocket -> Color(0xFFDBBFF8)
         QuizSecret.Constellation -> Color(0xFFA9B9F5)
+        else -> Color.hsv(((secret.ordinal - 12) * 34f) % 360f, 0.28f, 0.96f)
     }
-    Canvas(modifier.clip(RoundedCornerShape(16.dp)).clearAndSetSemantics {}) {
-        drawRect(Brush.linearGradient(listOf(accent, Color.White.copy(alpha = 0.86f))))
-        scale(size.minDimension / 80f, pivot = Offset.Zero) {
-            drawCircle(Ink.copy(alpha = 0.09f), 29f, Offset(40f, 40f), style = Stroke(1f))
-            drawCircle(Ink.copy(alpha = 0.24f), 2f, Offset(65f, 16f))
-            drawCircle(Ink.copy(alpha = 0.24f), 1.5f, Offset(15f, 61f))
-            drawSecret(secret)
+    Box(modifier.clip(RoundedCornerShape(16.dp)).clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
+        Canvas(Modifier.matchParentSize()) {
+            drawRect(Brush.linearGradient(listOf(accent, Color.White.copy(alpha = 0.86f))))
+            scale(size.minDimension / 80f, pivot = Offset.Zero) {
+                drawCircle(Ink.copy(alpha = 0.09f), 29f, Offset(40f, 40f), style = Stroke(1f))
+                drawCircle(Ink.copy(alpha = 0.24f), 2f, Offset(65f, 16f))
+                drawCircle(Ink.copy(alpha = 0.24f), 1.5f, Offset(15f, 61f))
+                drawSecret(secret)
+            }
         }
+        secret.glyph?.let { Text(it, color = Ink, fontSize = 28.sp) }
     }
 }
 
@@ -123,6 +131,7 @@ private fun DrawScope.drawSecret(secret: QuizSecret) {
             listOf(Offset(20f, 48f), Offset(30f, 28f), Offset(43f, 38f), Offset(58f, 23f), Offset(56f, 54f))
                 .forEach { drawCircle(Ink, 3.5f, it) }
         }
+        else -> Unit
     }
 }
 

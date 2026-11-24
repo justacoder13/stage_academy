@@ -83,7 +83,7 @@ internal fun WelcomePanel(questionCount: Int, onDiscover: (QuizSecret) -> Unit) 
     Surface(shape = PanelShape) {
         Text(
             text = stringResource(R.string.welcome_message),
-            modifier = Modifier.fillMaxWidth().padding(22.dp),
+            modifier = Modifier.fillMaxWidth().padding(22.dp).secretGesture(QuizSecret.Postcard, onDiscover),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

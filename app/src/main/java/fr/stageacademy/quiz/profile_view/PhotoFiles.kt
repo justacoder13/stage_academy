@@ -3,15 +3,18 @@ package fr.stageacademy.quiz.profile_view
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.ImageDecoder
 import android.graphics.Matrix
+import android.graphics.Paint
 import android.media.ExifInterface
+import android.net.Uri
 import android.os.Build
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 
-internal class PhotoFiles(context: Context) {
+internal class PhotoFiles(private val context: Context) {
     private val directory = File(context.cacheDir, "quiz_photos")
 
     fun prepareCapture(): File {
@@ -26,6 +29,50 @@ internal class PhotoFiles(context: Context) {
         return bounds.outWidth > 0 && bounds.outHeight > 0
     }
 
+    fun importPhoto(uri: Uri): Bitmap {
+        val source = prepareCapture()
+        try {
+            val stream = context.contentResolver.openInputStream(uri) ?: throw IOException("Image unavailable")
+            stream.use { input ->
+                source.outputStream().use { output ->
+                    val buffer = ByteArray(16 * 1024)
+                    var remaining = 32 * 1024 * 1024
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count == -1) break
+                        remaining -= count
+                        if (remaining < 0) throw IOException("Image exceeds the import limit")
+                        output.write(buffer, 0, count)
+                    }
+                }
+            }
+            return loadPreview(source)
+        } finally {
+            source.delete()
+        }
+    }
+
+    fun saveCrop(image: Bitmap, crop: PhotoCrop): File {
+        val draft = prepareCapture()
+        try {
+            val square = Bitmap.createBitmap(720, 720, Bitmap.Config.ARGB_8888)
+            try {
+                val canvas = Canvas(square)
+                canvas.drawColor(android.graphics.Color.WHITE)
+                crop.draw(canvas, image, square.width.toFloat(), Paint(Paint.FILTER_BITMAP_FLAG))
+                draft.outputStream().use { output ->
+                    if (!square.compress(Bitmap.CompressFormat.JPEG, 92, output)) throw IOException("Image encoding failed")
+                }
+            } finally {
+                square.recycle()
+            }
+            return draft
+        } catch (failure: Exception) {
+            draft.delete()
+            throw failure
+        }
+    }
+
     fun previousDraft(): File? = File(directory, "latest.jpg").takeIf(::isValidCapture)
 
     fun discardDraft(photo: File?) {
@@ -38,6 +85,7 @@ internal class PhotoFiles(context: Context) {
         val maxSize = 1200
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             return ImageDecoder.decodeBitmap(ImageDecoder.createSource(photo)) { decoder, info, _ ->
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 val size = info.size
                 val largestSide = maxOf(size.width, size.height)
                 if (largestSide > maxSize) {

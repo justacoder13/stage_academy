@@ -51,4 +51,29 @@ internal val quizQuestions = listOf(
         choices = listOf("==", "=", "!="),
         correctAnswer = "==",
     ),
+    Question(
+        text = "Quelle commande Git crée un dépôt dans le dossier actuel ?",
+        choices = listOf("git init", "git log", "git diff"),
+        correctAnswer = "git init",
+    ),
+    Question(
+        text = "Quelle commande Git permet de consulter l’historique des commits ?",
+        choices = listOf("git add", "git log", "git status"),
+        correctAnswer = "git log",
+    ),
+    Question(
+        text = "Quel composant Compose empile les éléments verticalement ?",
+        choices = listOf("Row", "Text", "Column"),
+        correctAnswer = "Column",
+    ),
+    Question(
+        text = "En Kotlin, quel mot-clé permet de vérifier une condition ?",
+        choices = listOf("if", "var", "fun"),
+        correctAnswer = "if",
+    ),
+    Question(
+        text = "En Kotlin, quel type sert à représenter du texte ?",
+        choices = listOf("Int", "String", "Boolean"),
+        correctAnswer = "String",
+    ),
 )

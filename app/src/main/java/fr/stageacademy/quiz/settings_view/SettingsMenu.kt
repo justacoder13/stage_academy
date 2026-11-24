@@ -50,6 +50,7 @@ internal fun SettingsMenu(
         Column(Modifier.selectableGroup()) {
             Text(
                 text = stringResource(R.string.appearance),
+                modifier = Modifier.secretGesture(QuizSecret.Prism, onDiscover, taps = 3),
                 style = MaterialTheme.typography.titleMedium,
             )
             QuizAppearance.entries.forEach { appearance ->

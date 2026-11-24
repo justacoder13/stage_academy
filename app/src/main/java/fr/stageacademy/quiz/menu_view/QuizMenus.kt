@@ -30,10 +30,13 @@ internal fun PauseMenu(
     MenuCard(
         title = stringResource(R.string.quiz_paused),
         titleModifier = Modifier
-            .secretGesture(QuizSecret.Hourglass, onDiscover, enabled = questionNumber * 2 == state.questionCount)
+            .secretGesture(QuizSecret.Hourglass, onDiscover, enabled = questionNumber == 5 || questionNumber == state.questionCount / 2)
             .secretGesture(QuizSecret.Key, onDiscover, taps = 2, enabled = keyAvailable),
     ) {
-        Text(stringResource(R.string.question_progress, questionNumber, state.questionCount))
+        Text(
+            stringResource(R.string.question_progress, questionNumber, state.questionCount),
+            modifier = Modifier.secretGesture(QuizSecret.Bookmark, onDiscover),
+        )
         Text(
             text = stringResource(R.string.quiz_score, state.score, state.questionCount),
             modifier = Modifier.secretGesture(QuizSecret.Music, onDiscover, taps = 2),

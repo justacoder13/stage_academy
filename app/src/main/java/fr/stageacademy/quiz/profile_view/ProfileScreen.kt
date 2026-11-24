@@ -1,6 +1,7 @@
 package fr.stageacademy.quiz.profile_view
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -11,6 +12,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.compose.foundation.Canvas
@@ -68,8 +70,6 @@ import fr.stageacademy.quiz.shared_view.ControlShape
 import fr.stageacademy.quiz.shared_view.MenuButton
 import fr.stageacademy.quiz.shared_view.MenuCard
 import fr.stageacademy.quiz.shared_view.QuizActionBar
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -83,17 +83,18 @@ private enum class PhotoStatus(val message: Int) {
     Unavailable(R.string.photo_camera_unavailable),
     Failed(R.string.photo_failed),
     Missing(R.string.photo_missing),
+    GalleryUnavailable(R.string.photo_gallery_unavailable),
 }
 
 @Composable
-internal fun ProfileScreen(editor: ProfileEditor, isProfileSelected: () -> Boolean) {
+internal fun ProfileScreen(editor: ProfileContract, isProfileSelected: () -> Boolean) {
     val context = LocalContext.current
     val activity = LocalActivity.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val files = editor.photos
     var status by remember { mutableStateOf<PhotoStatus?>(null) }
     var cameraOpen by remember { mutableStateOf(false) }
     var permissionPending by remember { mutableStateOf(false) }
+    var pickerPending by remember { mutableStateOf(false) }
     var capture by remember { mutableStateOf<ImageCapture?>(null) }
     var pendingPhoto by remember { mutableStateOf<File?>(null) }
     val photo = editor.photo
@@ -119,7 +120,10 @@ internal fun ProfileScreen(editor: ProfileEditor, isProfileSelected: () -> Boole
     fun canUseCamera(): Boolean = cameraOpen && isProfileSelected() &&
         lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) && context.hasCameraPermission()
 
-    BackHandler(enabled = cameraOpen) { closeCamera(PhotoStatus.Canceled) }
+    val cropImage = editor.cropImage
+    BackHandler(enabled = cameraOpen || cropImage != null) {
+        if (cameraOpen) closeCamera(PhotoStatus.Canceled) else editor.cancelCrop()
+    }
 
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -137,9 +141,9 @@ internal fun ProfileScreen(editor: ProfileEditor, isProfileSelected: () -> Boole
         }
     }
 
-    LaunchedEffect(files, photo) {
+    LaunchedEffect(editor, photo) {
         try {
-            preview = photo?.let { withContext(Dispatchers.IO) { files.loadPreview(it) } }
+            preview = photo?.let { editor.loadPreview(it) }
         } catch (_: FileNotFoundException) {
             preview = null
             if (editor.photo == photo) status = PhotoStatus.Missing
@@ -164,13 +168,20 @@ internal fun ProfileScreen(editor: ProfileEditor, isProfileSelected: () -> Boole
     val settingsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (isProfileSelected() && context.hasCameraPermission()) status = null
     }
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        pickerPending = false
+        if (uri != null && isProfileSelected()) {
+            status = null
+            editor.importPhoto(uri)
+        }
+    }
 
     fun takePhoto() {
         val imageCapture = capture ?: return
         if (!canUseCamera() || pendingPhoto != null) return
 
         val output = try {
-            files.prepareCapture()
+            editor.prepareCapture()
         } catch (_: IOException) {
             closeCamera(PhotoStatus.Failed)
             return
@@ -182,8 +193,7 @@ internal fun ProfileScreen(editor: ProfileEditor, isProfileSelected: () -> Boole
                 output.delete()
                 return
             }
-            if (saved && files.isValidCapture(output)) {
-                editor.selectPhoto(output)
+            if (saved && editor.acceptCapture(output)) {
                 closeCamera(PhotoStatus.Captured)
             } else {
                 output.delete()
@@ -208,6 +218,13 @@ internal fun ProfileScreen(editor: ProfileEditor, isProfileSelected: () -> Boole
         ) {
             when {
                 !editor.ready -> PhotoMessage(stringResource(R.string.profile_loading))
+                cropImage != null -> PhotoCropPanel(
+                    image = cropImage,
+                    busy = editor.importing,
+                    message = editor.message,
+                    onCancel = editor::cancelCrop,
+                    onConfirm = editor::confirmCrop,
+                )
                 cameraOpen -> MenuCard(title = stringResource(R.string.photo_title)) {
                     LiveCameraPreview(
                         canUseCamera = ::canUseCamera,
@@ -260,7 +277,7 @@ internal fun ProfileScreen(editor: ProfileEditor, isProfileSelected: () -> Boole
                         status?.let { PhotoMessage(stringResource(it.message)) }
                         PhotoButton(
                             label = stringResource(if (photo == null) R.string.photo_open_camera else R.string.photo_retake),
-                            enabled = !permissionPending && !editor.saving,
+                            enabled = !permissionPending && !pickerPending && !editor.saving && !editor.importing,
                             onClick = {
                                 if (!permissionPending && !editor.saving && isProfileSelected()) {
                                     status = null
@@ -273,14 +290,27 @@ internal fun ProfileScreen(editor: ProfileEditor, isProfileSelected: () -> Boole
                                 }
                             },
                         )
+                        MenuButton(
+                            label = stringResource(R.string.photo_gallery),
+                            enabled = !permissionPending && !pickerPending && !editor.saving && !editor.importing,
+                            onClick = {
+                                pickerPending = true
+                                try {
+                                    galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                } catch (_: ActivityNotFoundException) {
+                                    pickerPending = false
+                                    status = PhotoStatus.GalleryUnavailable
+                                }
+                            },
+                        )
                         if (photo != null) {
                             MenuButton(
                                 label = stringResource(R.string.profile_remove_photo),
                                 onClick = {
-                                    editor.selectPhoto(null)
+                                    editor.removePhoto()
                                     status = null
                                 },
-                                enabled = !editor.saving,
+                                enabled = !editor.saving && !editor.importing && !pickerPending,
                             )
                         }
                         if (status == PhotoStatus.Blocked) {
@@ -294,13 +324,14 @@ internal fun ProfileScreen(editor: ProfileEditor, isProfileSelected: () -> Boole
                 }
             }
         }
-        if (!cameraOpen) {
+        if (!cameraOpen && cropImage == null) {
             QuizActionBar(
                 label = stringResource(if (editor.saving) R.string.profile_saving else R.string.profile_save),
                 onClick = editor::save,
-                enabled = editor.ready && !editor.saving,
+                enabled = editor.ready && !editor.saving && !editor.importing && !pickerPending,
             ) {
-                val message = editor.message ?: R.string.profile_unsaved.takeIf { editor.hasChanges && !editor.nameInvalid }
+                val message = if (editor.importing) R.string.photo_importing else
+                    editor.message ?: R.string.profile_unsaved.takeIf { editor.hasChanges && !editor.nameInvalid }
                 message?.let { PhotoMessage(stringResource(it)) }
             }
         }
@@ -310,13 +341,14 @@ internal fun ProfileScreen(editor: ProfileEditor, isProfileSelected: () -> Boole
 @Composable
 private fun ProfilePhoto(bitmap: Bitmap?, requester: BringIntoViewRequester, newlyCaptured: Boolean) {
     if (bitmap != null) {
-        Image(
-            bitmap = remember(bitmap) { bitmap.asImageBitmap() },
-            contentDescription = stringResource(R.string.photo_preview),
-            modifier = Modifier.fillMaxWidth().heightIn(max = 280.dp)
-                .bringIntoViewRequester(requester).clip(ControlShape),
-            contentScale = ContentScale.Fit,
-        )
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Image(
+                bitmap = remember(bitmap) { bitmap.asImageBitmap() },
+                contentDescription = stringResource(R.string.photo_preview),
+                modifier = Modifier.size(128.dp).bringIntoViewRequester(requester).clip(CircleShape),
+                contentScale = ContentScale.Crop,
+            )
+        }
         if (newlyCaptured) {
             LaunchedEffect(bitmap) {
                 withFrameNanos { }
@@ -329,7 +361,7 @@ private fun ProfilePhoto(bitmap: Bitmap?, requester: BringIntoViewRequester, new
         val description = stringResource(R.string.profile_default_avatar)
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Canvas(
-                Modifier.size(80.dp).clip(CircleShape).background(background)
+                Modifier.size(128.dp).clip(CircleShape).background(background)
                     .semantics { contentDescription = description },
             ) {
                 drawCircle(tint, size.width * 0.15f, Offset(center.x, size.height * 0.37f))
