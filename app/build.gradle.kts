@@ -45,8 +45,12 @@ kotlin {
 }
 
 dependencies {
+    val cameraXVersion = "1.4.2"
     implementation(platform("androidx.compose:compose-bom:2025.05.01"))
     implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("androidx.camera:camera-camera2:$cameraXVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraXVersion")
+    implementation("androidx.camera:camera-view:$cameraXVersion")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")

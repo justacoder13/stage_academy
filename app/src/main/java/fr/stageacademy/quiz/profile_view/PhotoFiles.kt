@@ -1,4 +1,4 @@
-package fr.stageacademy.quiz.camera_view
+package fr.stageacademy.quiz.profile_view
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -6,39 +6,39 @@ import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.graphics.Matrix
 import android.media.ExifInterface
-import android.net.Uri
 import android.os.Build
-import androidx.core.content.FileProvider
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 
-class QuizPhotoProvider : FileProvider()
-
-internal class PhotoFiles(private val context: Context) {
+internal class PhotoFiles(context: Context) {
     private val directory = File(context.cacheDir, "quiz_photos")
-    private val pendingPhoto = File(directory, "pending.jpg")
     private val latestPhoto = File(directory, "latest.jpg")
+    private val history = context.getSharedPreferences("quiz_photo", Context.MODE_PRIVATE)
 
-    fun prepareCapture(): Uri {
+    fun prepareCapture(): File {
         directory.mkdirs()
-        pendingPhoto.outputStream().close()
-        return FileProvider.getUriForFile(context, "${context.packageName}.quiz.photos", pendingPhoto)
+        return File.createTempFile("capture-", ".jpg", directory)
     }
 
-    fun saveCapture(): Boolean {
+    fun saveCapture(pendingPhoto: File): Boolean {
         if (pendingPhoto.length() == 0L) return false
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(pendingPhoto.absolutePath, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return false
+
         Files.move(pendingPhoto.toPath(), latestPhoto.toPath(), REPLACE_EXISTING)
+        history.edit().putBoolean("hasSavedPhoto", true).apply()
         return true
     }
 
-    fun discardCapture() {
-        pendingPhoto.delete()
-    }
-
     fun loadPreview(): Bitmap? {
-        if (!latestPhoto.isFile) return null
+        if (!latestPhoto.isFile) {
+            if (history.getBoolean("hasSavedPhoto", false)) throw FileNotFoundException("Photo no longer in cache")
+            return null
+        }
 
         val maxSize = 1200
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

@@ -5,7 +5,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import fr.stageacademy.quiz.R
-import fr.stageacademy.quiz.camera_view.CameraPanel
 import fr.stageacademy.quiz.shared_view.MenuCard
 
 @Composable
@@ -21,5 +20,4 @@ internal fun AboutScreen() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
-    CameraPanel()
 }

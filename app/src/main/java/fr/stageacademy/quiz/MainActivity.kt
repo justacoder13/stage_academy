@@ -45,8 +45,10 @@ import fr.stageacademy.quiz.collection_view.QuizSecret
 import fr.stageacademy.quiz.collection_view.SecretCollection
 import fr.stageacademy.quiz.collection_view.SecretEntryDialog
 import fr.stageacademy.quiz.menu_view.LeaveQuizDialog
+import fr.stageacademy.quiz.menu_view.HomeTabs
 import fr.stageacademy.quiz.menu_view.PauseMenu
 import fr.stageacademy.quiz.menu_view.WelcomePanel
+import fr.stageacademy.quiz.profile_view.ProfileScreen
 import fr.stageacademy.quiz.quiz_view.QuestionActions
 import fr.stageacademy.quiz.quiz_view.QuestionPanel
 import fr.stageacademy.quiz.quiz_view.QuizContract
@@ -61,7 +63,7 @@ import fr.stageacademy.quiz.shared_view.MenuButton
 import fr.stageacademy.quiz.shared_view.QuizActionBar
 import fr.stageacademy.quiz.ui.theme.QuizTheme
 
-private enum class QuizPage { Start, Playing, Paused, Settings, Collection, About }
+private enum class QuizPage { Start, Profile, Playing, Paused, Settings, Collection, About }
 
 private val PresenterSaver = Saver<QuizContract, Bundle>(
     save = { presenter ->
@@ -153,6 +155,7 @@ private fun QuizNavigation(
     val presenter = rememberSaveable(saver = PresenterSaver) { QuizPresenter(quizQuestions) }
     var state by remember(presenter) { mutableStateOf(presenter.getState()) }
     var page by rememberSaveable { mutableStateOf(QuizPage.Start) }
+    var quizStarted by rememberSaveable { mutableStateOf(false) }
     var menuOrigin by rememberSaveable { mutableStateOf(QuizPage.Start) }
     var confirmLeave by rememberSaveable { mutableStateOf(false) }
     var selectedSecret by rememberSaveable { mutableStateOf<QuizSecret?>(null) }
@@ -179,12 +182,14 @@ private fun QuizNavigation(
 
     fun resetQuiz() {
         state = presenter.restart()
+        quizStarted = true
         visitedSettingsDuringQuiz = false
     }
 
     fun goBack() {
         page = when (page) {
             QuizPage.Start -> QuizPage.Start
+            QuizPage.Profile -> QuizPage.Start
             QuizPage.Playing -> if (question == null) QuizPage.Start else QuizPage.Paused
             QuizPage.Paused -> QuizPage.Playing
             QuizPage.Settings, QuizPage.Collection -> menuOrigin
@@ -201,6 +206,13 @@ private fun QuizNavigation(
         contentAlignment = Alignment.TopCenter,
     ) {
         Column(Modifier.widthIn(max = 520.dp).fillMaxWidth().fillMaxHeight()) {
+            if (page == QuizPage.Start || page == QuizPage.Profile) {
+                HomeTabs(
+                    profileSelected = page == QuizPage.Profile,
+                    onHome = { page = QuizPage.Start },
+                    onProfile = { page = QuizPage.Profile },
+                )
+            }
             if (page == QuizPage.Playing) {
                 QuizHeader(
                     modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
@@ -219,12 +231,14 @@ private fun QuizNavigation(
                     ) {
                         when (page) {
                             QuizPage.Start -> WelcomePanel(state.questionCount, ::discoverSecret)
+                            QuizPage.Profile -> ProfileScreen(isProfileSelected = { page == QuizPage.Profile })
                             QuizPage.Paused -> PauseMenu(
                                 state = state,
                                 keyAvailable = visitedSettingsDuringQuiz && !settings.showCorrections &&
                                     questionNumber == state.questionCount,
                                 onSettings = { openMenu(QuizPage.Settings) },
                                 onCollection = { openMenu(QuizPage.Collection) },
+                                onProfile = { page = QuizPage.Profile },
                                 onLeave = { confirmLeave = true },
                                 onDiscover = ::discoverSecret,
                             )
@@ -265,9 +279,9 @@ private fun QuizNavigation(
 
             when (page) {
                 QuizPage.Start -> QuizActionBar(
-                    label = stringResource(R.string.start_quiz),
+                    label = stringResource(if (quizStarted && question != null) R.string.resume_quiz else R.string.start_quiz),
                     onClick = {
-                        resetQuiz()
+                        if (!quizStarted || question == null) resetQuiz()
                         page = QuizPage.Playing
                     },
                     secondaryAction = {
@@ -277,6 +291,7 @@ private fun QuizNavigation(
                         }
                     },
                 )
+                QuizPage.Profile -> Unit
                 QuizPage.Paused -> QuizActionBar(
                     label = stringResource(R.string.resume_quiz),
                     onClick = { page = QuizPage.Playing },
@@ -314,6 +329,7 @@ private fun QuizNavigation(
             onLeave = {
                 confirmLeave = false
                 resetQuiz()
+                quizStarted = false
                 page = QuizPage.Start
             },
         )

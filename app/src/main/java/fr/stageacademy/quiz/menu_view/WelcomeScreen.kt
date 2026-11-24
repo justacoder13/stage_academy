@@ -7,8 +7,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -33,6 +36,23 @@ import fr.stageacademy.quiz.shared_view.PanelShape
 import fr.stageacademy.quiz.shared_view.QuizTag
 import fr.stageacademy.quiz.ui.theme.QuizForest
 import fr.stageacademy.quiz.ui.theme.QuizLime
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun HomeTabs(profileSelected: Boolean, onHome: () -> Unit, onProfile: () -> Unit) {
+    PrimaryTabRow(selectedTabIndex = if (profileSelected) 1 else 0) {
+        Tab(
+            selected = !profileSelected,
+            onClick = onHome,
+            text = { Text(stringResource(R.string.home)) },
+        )
+        Tab(
+            selected = profileSelected,
+            onClick = onProfile,
+            text = { Text(stringResource(R.string.profile)) },
+        )
+    }
+}
 
 @Composable
 internal fun WelcomePanel(questionCount: Int, onDiscover: (QuizSecret) -> Unit) {

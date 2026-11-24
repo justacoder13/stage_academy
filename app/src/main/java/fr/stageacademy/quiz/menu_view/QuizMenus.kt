@@ -22,6 +22,7 @@ internal fun PauseMenu(
     keyAvailable: Boolean,
     onSettings: () -> Unit,
     onCollection: () -> Unit,
+    onProfile: () -> Unit,
     onLeave: () -> Unit,
     onDiscover: (QuizSecret) -> Unit,
 ) {
@@ -39,6 +40,7 @@ internal fun PauseMenu(
         )
         MenuButton(label = stringResource(R.string.settings), onClick = onSettings)
         MenuButton(label = stringResource(R.string.secret_collection), onClick = onCollection)
+        MenuButton(label = stringResource(R.string.profile), onClick = onProfile)
         TextButton(onClick = onLeave, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
             Text(stringResource(R.string.leave_quiz))
         }
