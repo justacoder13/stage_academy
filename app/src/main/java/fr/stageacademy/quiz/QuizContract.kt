@@ -1,12 +1,17 @@
 package fr.stageacademy.quiz
 
 interface QuizContract {
-    fun getScore(): Int
-    fun getCurrentQuestionIndex(): Int
-    fun isFinished(): Boolean
-    fun getCurrentQuestion(): Question
-    fun submitAnswer(selectedAnswer: String): Boolean
-    fun canGoToNextQuestion(): Boolean
-    fun goToNextQuestion(): Unit
-    fun restart(): Unit
+    fun getState(): QuizState
+    fun submitAnswer(choice: String): QuizState
+    fun goToNextQuestion(): QuizState
+    fun restart(): QuizState
 }
+
+data class QuizState(
+    val question: Question?,
+    val questionIndex: Int,
+    val questionCount: Int,
+    val score: Int,
+    val selectedChoice: String?,
+    val isCorrect: Boolean,
+)

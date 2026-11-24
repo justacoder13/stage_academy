@@ -63,9 +63,9 @@ private val QuizTypography = Typography(
 )
 
 @Composable
-fun QuizTheme(content: @Composable () -> Unit) {
+fun QuizTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) NightColors else DayColors,
+        colorScheme = if (darkTheme) NightColors else DayColors,
         typography = QuizTypography,
         content = content,
     )

@@ -19,6 +19,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -47,45 +49,46 @@ private val PanelShape = RoundedCornerShape(28.dp)
 private val ControlShape = RoundedCornerShape(16.dp)
 
 @Composable
-internal fun WelcomePanel(questionCount: Int, onStart: () -> Unit) {
+internal fun WelcomePanel(questionCount: Int, onDiscover: (QuizSecret) -> Unit) {
+    val darkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     Surface(shape = PanelShape, color = QuizForest, contentColor = Color.White) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            CodeIllustration(Modifier.fillMaxWidth().height(152.dp))
+            CodeIllustration(
+                Modifier.fillMaxWidth().height(152.dp).secretGesture(QuizSecret.Bug, onDiscover),
+            )
             QuizTag(
                 text = stringResource(R.string.question_count, questionCount),
                 color = QuizLime,
                 contentColor = QuizForest,
+                modifier = Modifier.secretGesture(QuizSecret.Calculator, onDiscover, taps = 3),
             )
             Text(
                 text = stringResource(R.string.welcome_title),
-                modifier = Modifier.widthIn(max = 260.dp).semantics { heading() },
+                modifier = Modifier.widthIn(max = 260.dp).semantics { heading() }
+                    .secretGesture(QuizSecret.Firefly, onDiscover, taps = 2, enabled = darkTheme),
                 style = MaterialTheme.typography.displaySmall,
             )
         }
     }
 
     Surface(shape = PanelShape) {
-        Column(
+        Text(
+            text = stringResource(R.string.welcome_message),
             modifier = Modifier.fillMaxWidth().padding(22.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.welcome_message),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            QuizButton(label = stringResource(R.string.start_quiz), onClick = onStart)
-        }
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
+
 }
 
 @Composable
-internal fun QuizHeader(score: Int?, questionCount: Int) {
+internal fun QuizHeader(modifier: Modifier = Modifier, onPause: (() -> Unit)? = null) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -95,12 +98,10 @@ internal fun QuizHeader(score: Int?, questionCount: Int) {
             style = MaterialTheme.typography.titleMedium.copy(fontFamily = FontFamily.Serif),
             color = MaterialTheme.colorScheme.onBackground,
         )
-        if (score != null) {
-            QuizTag(
-                text = stringResource(R.string.quiz_score, score, questionCount),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
+        if (onPause != null) {
+            TextButton(onClick = onPause, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.pause_quiz))
+            }
         }
     }
 }
@@ -110,11 +111,11 @@ internal fun QuestionPanel(
     question: Question,
     questionNumber: Int,
     questionCount: Int,
+    score: Int,
     selectedChoice: String?,
     isCorrect: Boolean,
-    canContinue: Boolean,
     onChoice: (String) -> Unit,
-    onContinue: () -> Unit,
+    onDiscover: (QuizSecret) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     Surface(shape = PanelShape) {
@@ -122,12 +123,26 @@ internal fun QuestionPanel(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text(
-                    text = stringResource(R.string.question_progress, questionNumber, questionCount),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = colors.onSurfaceVariant,
-                )
+            Column(
+                modifier = Modifier.secretGesture(QuizSecret.Compass, onDiscover, enabled = selectedChoice != null),
+                verticalArrangement = Arrangement.spacedBy(9.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.question_progress, questionNumber, questionCount),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colors.onSurfaceVariant,
+                    )
+                    QuizTag(
+                        text = stringResource(R.string.quiz_score, score, questionCount),
+                        color = colors.primaryContainer,
+                        contentColor = colors.onPrimaryContainer,
+                    )
+                }
                 LinearProgressIndicator(
                     progress = { questionNumber.toFloat() / questionCount },
                     modifier = Modifier.fillMaxWidth().height(6.dp),
@@ -144,75 +159,134 @@ internal fun QuestionPanel(
             )
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 question.choices.forEachIndexed { index, choice ->
-                    val selectedAnswer = choice == selectedChoice
-                    val containerColor = when {
-                        !selectedAnswer -> colors.surface
-                        isCorrect -> colors.primaryContainer
-                        else -> colors.errorContainer
-                    }
-                    val contentColor = when {
-                        !selectedAnswer -> colors.onSurface
-                        isCorrect -> colors.onPrimaryContainer
-                        else -> colors.onErrorContainer
-                    }
-                    Surface(
+                    AnswerChoice(
+                        letter = 'A' + index,
+                        choice = choice,
+                        isSelected = choice == selectedChoice,
+                        isCorrect = isCorrect,
+                        enabled = selectedChoice == null,
                         onClick = { onChoice(choice) },
-                        modifier = Modifier.fillMaxWidth().semantics { selected = selectedAnswer },
-                        enabled = !canContinue,
-                        shape = ControlShape,
-                        color = containerColor,
-                        contentColor = contentColor,
-                        border = BorderStroke(1.dp, if (selectedAnswer) contentColor else colors.outlineVariant),
-                    ) {
-                        Row(
-                            modifier = Modifier.heightIn(min = 54.dp).padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Surface(shape = CircleShape, color = contentColor.copy(alpha = 0.08f)) {
-                                Box(Modifier.size(30.dp), contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = ('A' + index).toString(),
-                                        modifier = Modifier.clearAndSetSemantics {},
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = contentColor,
-                                    )
-                                }
-                            }
-                            Text(
-                                text = choice,
-                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
-                            )
-                        }
-                    }
+                    )
                 }
             }
-            val feedback = when {
-                selectedChoice == null -> R.string.choose_answer
-                isCorrect -> R.string.correct_feedback
-                else -> R.string.incorrect_feedback
-            }
-            Text(
-                text = stringResource(feedback),
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                style = MaterialTheme.typography.labelLarge,
-                color = when {
-                    selectedChoice == null -> colors.onSurfaceVariant
-                    isCorrect -> colors.onPrimaryContainer
-                    else -> colors.onErrorContainer
-                },
-            )
         }
     }
-    QuizButton(
-        label = stringResource(if (questionNumber == questionCount) R.string.show_results else R.string.next_question),
-        onClick = onContinue,
-        enabled = canContinue,
-    )
 }
 
 @Composable
-internal fun ResultPanel(score: Int, questionCount: Int, onRestart: () -> Unit) {
+internal fun QuestionActions(
+    selectedChoice: String?,
+    isCorrect: Boolean,
+    correctAnswer: String?,
+    isLastQuestion: Boolean,
+    onContinue: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val feedback = when {
+        selectedChoice == null -> stringResource(R.string.choose_answer)
+        isCorrect -> stringResource(R.string.correct_feedback)
+        correctAnswer == null -> stringResource(R.string.incorrect_feedback_without_correction)
+        else -> stringResource(R.string.incorrect_feedback, correctAnswer)
+    }
+    val feedbackColor = when {
+        selectedChoice == null -> colors.onSurfaceVariant
+        isCorrect -> colors.onPrimaryContainer
+        else -> colors.onErrorContainer
+    }
+    QuizActionBar(
+        label = stringResource(if (isLastQuestion) R.string.show_results else R.string.next_question),
+        onClick = onContinue,
+        enabled = selectedChoice != null,
+    ) {
+        Text(
+            text = feedback,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            style = MaterialTheme.typography.labelLarge,
+            color = feedbackColor,
+        )
+    }
+}
+
+@Composable
+internal fun QuizActionBar(
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    secondaryAction: (@Composable () -> Unit)? = null,
+    feedback: (@Composable () -> Unit)? = null,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        shadowElevation = 4.dp,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            feedback?.invoke()
+            Button(
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
+                enabled = enabled,
+                shape = ControlShape,
+            ) {
+                Text(text = label, style = MaterialTheme.typography.labelLarge)
+            }
+            secondaryAction?.invoke()
+        }
+    }
+}
+
+@Composable
+private fun AnswerChoice(
+    letter: Char,
+    choice: String,
+    isSelected: Boolean,
+    isCorrect: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val (containerColor, contentColor) = when {
+        !isSelected -> colors.surface to colors.onSurface
+        isCorrect -> colors.primaryContainer to colors.onPrimaryContainer
+        else -> colors.errorContainer to colors.onErrorContainer
+    }
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().semantics { selected = isSelected },
+        enabled = enabled,
+        shape = ControlShape,
+        color = containerColor,
+        contentColor = contentColor,
+        border = BorderStroke(1.dp, if (isSelected) contentColor else colors.outlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.heightIn(min = 54.dp).padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Surface(shape = CircleShape, color = contentColor.copy(alpha = 0.08f)) {
+                Box(Modifier.size(30.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = letter.toString(),
+                        modifier = Modifier.clearAndSetSemantics {},
+                        style = MaterialTheme.typography.labelLarge,
+                        color = contentColor,
+                    )
+                }
+            }
+            Text(
+                text = choice,
+                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun ResultPanel(score: Int, questionCount: Int, onDiscover: (QuizSecret) -> Unit) {
     Surface(shape = PanelShape, color = QuizForest, contentColor = Color.White) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 36.dp),
@@ -226,30 +300,22 @@ internal fun ResultPanel(score: Int, questionCount: Int, onRestart: () -> Unit) 
             )
             Text(
                 text = stringResource(R.string.final_score, score, questionCount),
+                modifier = Modifier.secretGesture(QuizSecret.Star, onDiscover, enabled = score == questionCount),
                 style = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Serif),
                 color = QuizLime,
             )
-            Text(text = stringResource(R.string.final_score_label), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = stringResource(R.string.final_score_label),
+                modifier = Modifier.secretGesture(QuizSecret.Balance, onDiscover, taps = 2, enabled = score * 2 == questionCount),
+                style = MaterialTheme.typography.bodyLarge,
+            )
         }
     }
-    QuizButton(label = stringResource(R.string.restart_quiz), onClick = onRestart)
 }
 
 @Composable
-private fun QuizButton(label: String, onClick: () -> Unit, enabled: Boolean = true) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
-        enabled = enabled,
-        shape = ControlShape,
-    ) {
-        Text(text = label, style = MaterialTheme.typography.labelLarge)
-    }
-}
-
-@Composable
-private fun QuizTag(text: String, color: Color, contentColor: Color) {
-    Surface(shape = CircleShape, color = color, contentColor = contentColor) {
+private fun QuizTag(text: String, color: Color, contentColor: Color, modifier: Modifier = Modifier) {
+    Surface(modifier = modifier, shape = CircleShape, color = color, contentColor = contentColor) {
         Text(
             text = text,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
