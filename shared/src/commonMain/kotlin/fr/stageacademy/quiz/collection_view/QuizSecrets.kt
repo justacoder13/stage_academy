@@ -70,6 +70,16 @@ internal enum class QuizSecret(val title: StringResource, val description: Strin
     Pixel(Res.string.secret_pixel, Res.string.story_pixel, Res.string.hint_pixel, "▦"),
     Lantern(Res.string.secret_lantern, Res.string.story_lantern, Res.string.hint_lantern, "✦"),
     Crown(Res.string.secret_crown, Res.string.story_crown, Res.string.hint_crown, "♛"),
+    Carousel(Res.string.secret_carousel, Res.string.story_carousel, Res.string.hint_carousel),
+    Chameleon(Res.string.secret_chameleon, Res.string.story_chameleon, Res.string.hint_chameleon),
+    Boomerang(Res.string.secret_boomerang, Res.string.story_boomerang, Res.string.hint_boomerang),
+    Bicorne(Res.string.secret_bicorne, Res.string.story_bicorne, Res.string.hint_bicorne),
+    Ice(Res.string.secret_ice, Res.string.story_ice, Res.string.hint_ice),
+    Cartographer(Res.string.secret_cartographer, Res.string.story_cartographer, Res.string.hint_cartographer),
+    Trapdoor(Res.string.secret_trapdoor, Res.string.story_trapdoor, Res.string.hint_trapdoor),
+    Zigzag(Res.string.secret_zigzag, Res.string.story_zigzag, Res.string.hint_zigzag),
+    ImperialBee(Res.string.secret_imperial_bee, Res.string.story_imperial_bee, Res.string.hint_imperial_bee),
+    Comet(Res.string.secret_comet, Res.string.story_comet, Res.string.hint_comet),
 }
 
 @Composable

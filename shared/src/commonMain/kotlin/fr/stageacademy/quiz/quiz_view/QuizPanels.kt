@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -26,11 +27,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -95,6 +99,7 @@ internal fun QuestionPanel(
     horizontalAnswers: Boolean,
     onChoice: (String) -> Unit,
     onDiscover: ((QuizSecret) -> Unit)? = null,
+    onCarouselTrip: (() -> Unit)? = null,
     status: (@Composable () -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -157,7 +162,7 @@ internal fun QuestionPanel(
                     style = MaterialTheme.typography.headlineMedium,
                 )
             }
-            AnswerChoices(question.choices, selectedChoice, isCorrect, horizontalAnswers, onChoice)
+            AnswerChoices(question.choices, selectedChoice, isCorrect, horizontalAnswers, onChoice, onCarouselTrip)
         }
     }
 }
@@ -169,6 +174,7 @@ private fun AnswerChoices(
     isCorrect: Boolean,
     horizontalAnswers: Boolean,
     onChoice: (String) -> Unit,
+    onCarouselTrip: (() -> Unit)?,
 ) {
     val answer: @Composable (Int, String, Modifier) -> Unit = { index, choice, modifier ->
         AnswerChoice(
@@ -183,6 +189,20 @@ private fun AnswerChoices(
         )
     }
     if (horizontalAnswers) {
+        val rowState = rememberLazyListState()
+        val carouselTrip by rememberUpdatedState(onCarouselTrip)
+        val watchCarousel = selectedChoice == null && onCarouselTrip != null
+        LaunchedEffect(rowState, watchCarousel) {
+            if (!watchCarousel) return@LaunchedEffect
+            var reachedEnd = false
+            snapshotFlow { rowState.canScrollBackward to rowState.canScrollForward }.collect { (backward, forward) ->
+                if (backward && !forward) reachedEnd = true
+                if (reachedEnd && !backward && forward) {
+                    reachedEnd = false
+                    carouselTrip?.invoke()
+                }
+            }
+        }
         // Keep a preview of the next card on screen, with wider cards for large text.
         val cardWidthFraction = if (LocalDensity.current.fontScale > 1.3f) 0.82f else 0.43f
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -192,6 +212,7 @@ private fun AnswerChoices(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             LazyRow(
+                state = rowState,
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -257,7 +278,15 @@ internal fun QuestionActions(
                 exit = fadeOut(animationSpec = tween(durationMillis = 300)),
             ) {
                 val (text, color) = if (canGoToNextQuestion) feedback else previousFeedback
-                Text(text = text, style = MaterialTheme.typography.labelLarge, color = color)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (canGoToNextQuestion && isCorrect) {
+                        QuizCelebration(Celebration.CorrectAnswer, Modifier.size(25.dp).clearAndSetSemantics {})
+                    }
+                    Text(text = text, style = MaterialTheme.typography.labelLarge, color = color)
+                }
             }
         }
     }
@@ -350,6 +379,7 @@ internal fun ResultPanel(
     title: String = stringResource(Res.string.quiz_finished),
     detail: String? = null,
 ) {
+    val perfectScore = questionCount > 0 && score == questionCount
     Surface(shape = PanelShape, color = QuizForest, contentColor = Color.White) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 36.dp),
@@ -361,9 +391,13 @@ internal fun ResultPanel(
                 modifier = Modifier.semantics { heading() }.secretGesture(QuizSecret.Flag, onDiscover),
                 style = MaterialTheme.typography.headlineMedium,
             )
+            if (perfectScore) {
+                QuizCelebration(Celebration.PerfectScore, Modifier.size(86.dp).clearAndSetSemantics {})
+                Text(stringResource(Res.string.perfect_score), style = MaterialTheme.typography.titleMedium)
+            }
             Text(
                 text = stringResource(Res.string.final_score, score, questionCount),
-                modifier = Modifier.secretGesture(QuizSecret.Star, onDiscover, enabled = score == questionCount),
+                modifier = Modifier.secretGesture(QuizSecret.Star, onDiscover, enabled = perfectScore),
                 style = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Serif),
                 color = QuizLime,
             )

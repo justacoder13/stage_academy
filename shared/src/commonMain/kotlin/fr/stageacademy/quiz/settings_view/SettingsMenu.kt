@@ -42,6 +42,7 @@ internal data class QuizSettings(
 internal fun SettingsMenu(
     settings: QuizSettings,
     onSettingsChange: (QuizSettings) -> Unit,
+    onAppearanceSelected: (QuizAppearance) -> Unit,
     onDiscover: (QuizSecret) -> Unit,
     onAbout: () -> Unit,
     onLeaderboard: () -> Unit,
@@ -62,7 +63,7 @@ internal fun SettingsMenu(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(
                         selected = selected,
                         role = Role.RadioButton,
-                        onClick = { onSettingsChange(settings.copy(appearance = appearance)) },
+                        onClick = { onAppearanceSelected(appearance) },
                     ),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),

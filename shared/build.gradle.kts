@@ -34,6 +34,7 @@ kotlin {
 
     sourceSets.androidMain.dependencies {
         val cameraXVersion = "1.4.2"
+        implementation("com.airbnb.android:lottie-compose:6.7.1")
         implementation("androidx.activity:activity-compose:1.10.1")
         implementation("androidx.camera:camera-camera2:$cameraXVersion")
         implementation("androidx.camera:camera-lifecycle:$cameraXVersion")

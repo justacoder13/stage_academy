@@ -43,6 +43,11 @@ Dans le dossier du module `app`, l’APK se trouve sous `outputs\apk\debug`.
 - `shared/src/commonMain` contient la navigation, le thème, les écrans et leurs
   presenters dans les packages `*_view`. Les textes partagés sont dans
   `shared/src/commonMain/composeResources/values/strings.xml`.
+- `QuizApp.kt` assemble les dépendances et le thème. Dans `navigation_view`,
+  `QuizNavigation` affiche les écrans et transmet les actions au
+  `QuizNavigationPresenter`, qui coordonne les presenters du quiz, des défis,
+  du profil et du classement. Compose observe leur état partagé sur les deux
+  plateformes.
 - `shared/src/androidMain` relie l’application à CameraX, au sélecteur Android
   et aux données locales Android existantes.
 - `shared/src/jvmMain` crée la fenêtre bureau et relie l’application à la

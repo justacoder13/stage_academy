@@ -76,4 +76,54 @@ val quizQuestions: List<Question> = listOf(
         choices = listOf("Int", "String", "Boolean"),
         correctAnswer = "String",
     ),
+    Question(
+        text = "Dans quel domaine l’entreprise MWM est-elle spécialisée ?",
+        choices = listOf("Le développement d’applications mobiles", "La fabrication d’ordinateurs", "La cybersécurité"),
+        correctAnswer = "Le développement d’applications mobiles",
+    ),
+    Question(
+        text = "Dans quelle ville le studio à l’origine de MWM a-t-il été fondé ?",
+        choices = listOf("Lyon", "Paris", "Bordeaux"),
+        correctAnswer = "Paris",
+    ),
+    Question(
+        text = "En quelle année le studio à l’origine de MWM a-t-il été fondé ?",
+        choices = listOf("2009", "2015", "2020"),
+        correctAnswer = "2009",
+    ),
+    Question(
+        text = "Qui sont les fondateurs du studio à l’origine de MWM ?",
+        choices = listOf("Steve Jobs et Steve Wozniak", "Larry Page et Sergey Brin", "Jean-Baptiste Hironde et Nicolas Dupré"),
+        correctAnswer = "Jean-Baptiste Hironde et Nicolas Dupré",
+    ),
+    Question(
+        text = "Quelle est la première application lancée par MWM en 2012 ?",
+        choices = listOf("Spotify", "edjing", "TikTok"),
+        correctAnswer = "edjing",
+    ),
+    Question(
+        text = "À quoi sert l’application edjing développée par MWM ?",
+        choices = listOf("À mixer de la musique comme un DJ", "À retoucher des photos", "À apprendre la programmation"),
+        correctAnswer = "À mixer de la musique comme un DJ",
+    ),
+    Question(
+        text = "Quel était l’un des anciens noms de MWM ?",
+        choices = listOf("Android World", "Mobile Tech France", "Music World Media"),
+        correctAnswer = "Music World Media",
+    ),
+    Question(
+        text = "Quels types d’applications MWM développe-t-elle notamment ?",
+        choices = listOf("Uniquement des applications bancaires", "Des applications musicales et créatives", "Uniquement des applications de messagerie"),
+        correctAnswer = "Des applications musicales et créatives",
+    ),
+    Question(
+        text = "Combien de téléchargements les applications de MWM ont-elles dépassé au total ?",
+        choices = listOf("1 milliard", "10 millions", "50 millions"),
+        correctAnswer = "1 milliard",
+    ),
+    Question(
+        text = "Quelle technologie MWM utilise-t-elle pour faciliter la création d’applications mobiles ?",
+        choices = listOf("L’impression 3D", "La réalité virtuelle uniquement", "L’intelligence artificielle"),
+        correctAnswer = "L’intelligence artificielle",
+    ),
 )

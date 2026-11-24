@@ -1,0 +1,105 @@
+package fr.stageacademy.quiz.navigation_view
+
+import androidx.compose.runtime.saveable.SaverScope
+import fr.stageacademy.quiz.QuizPreferences
+import fr.stageacademy.quiz.challenge_view.ChallengeMode
+import fr.stageacademy.quiz.challenge_view.ChallengePresenter
+import fr.stageacademy.quiz.collection_view.QuizSecret
+import fr.stageacademy.quiz.leaderboard_view.LeaderboardPresenter
+import fr.stageacademy.quiz.leaderboard_view.LeaderboardStore
+import fr.stageacademy.quiz.leaderboard_view.PlayerRanking
+import fr.stageacademy.quiz.profile_view.ProfileIdentity
+import fr.stageacademy.quiz.quiz_view.QuizPresenter
+import fr.stageacademy.quiz.quiz_view.QuizPresenterSaver
+import fr.stageacademy.quiz.quiz_view.quizQuestions
+import fr.stageacademy.quiz.settings_view.QuizAppearance
+import fr.stageacademy.quiz.settings_view.QuizSettings
+import kotlinx.coroutines.CoroutineScope
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class QuizNavigationPresenterTest {
+    private val scope = CoroutineScope(EmptyCoroutineContext)
+    private val leaderboard = LeaderboardPresenter(object : LeaderboardStore {
+        override fun rankings() = emptyList<PlayerRanking>()
+        override fun record(id: String, player: String, points: Int) = listOf(PlayerRanking(player, points.toLong()))
+    }, scope)
+    private val profile = object : ProfileIdentity {
+        override val savedName = "Camille"
+        override fun load() = Unit
+    }
+    private val preferences = object : QuizPreferences {
+        private var settings = QuizSettings()
+        private var secrets = emptySet<QuizSecret>()
+        override fun settings() = settings
+        override fun secrets() = secrets
+        override fun saveSettings(settings: QuizSettings) { this.settings = settings }
+        override fun saveSecrets(secrets: Set<QuizSecret>) { this.secrets = secrets }
+    }
+
+    @Test
+    fun restoringThePausedRoundKeepsTheAnswerAndItsReturnPath() {
+        val quiz = QuizPresenter(quizQuestions)
+        val challenge = ChallengePresenter()
+        val presenter = QuizNavigationPresenter(quiz, challenge, leaderboard, profile, preferences)
+        presenter.startNormal("Camille")
+        val correctAnswer = assertNotNull(presenter.round.question).correctAnswer
+        presenter.answerNormal(correctAnswer)
+        presenter.pauseNormal()
+        presenter.openCollection()
+
+        val saverScope = SaverScope { true }
+        val navigationSaver = QuizNavigationPresenter.saver(quiz, challenge, leaderboard, profile, preferences)
+        val savedNavigation = assertNotNull(with(navigationSaver) { saverScope.save(presenter) })
+        val savedQuiz = assertNotNull(with(QuizPresenterSaver) { saverScope.save(quiz) })
+        val restoredQuiz = assertNotNull(QuizPresenterSaver.restore(savedQuiz))
+        val restored = assertNotNull(
+            QuizNavigationPresenter.saver(restoredQuiz, challenge, leaderboard, profile, preferences).restore(savedNavigation),
+        )
+
+        assertEquals(QuizPage.Collection, restored.navigation.page)
+        assertEquals(presenter.navigation.roundId, restored.navigation.roundId)
+        restored.goBack()
+        assertEquals(QuizPage.Paused, restored.navigation.page)
+        restored.goBack()
+        assertEquals(QuizPage.Playing, restored.navigation.page)
+        assertEquals(1, restored.round.score)
+        assertEquals(correctAnswer, restored.round.selectedChoice)
+        assertEquals(QuizSecret.Boomerang, restored.navigation.selectedSecret)
+        assertTrue(QuizSecret.Boomerang in preferences.secrets())
+    }
+
+    @Test
+    fun leavingAChallengeReturnsToModesAndThenHome() {
+        val presenter = QuizNavigationPresenter(
+            QuizPresenter(quizQuestions), ChallengePresenter(), leaderboard, profile, preferences,
+        )
+        presenter.openModes()
+        presenter.startChallenge(ChallengeMode.Surprise)
+        assertNotNull(presenter.challenge.state)
+        presenter.goBack()
+        assertEquals(QuizPage.Challenges, presenter.navigation.page)
+        assertNull(presenter.challenge.state)
+        presenter.goBack()
+        assertEquals(QuizPage.Start, presenter.navigation.page)
+    }
+
+    @Test
+    fun appearanceAndDiscoveryArePersistedThroughPreferences() {
+        val presenter = QuizNavigationPresenter(
+            QuizPresenter(quizQuestions), ChallengePresenter(), leaderboard, profile, preferences,
+        )
+        presenter.openSettings()
+        presenter.selectAppearance(QuizAppearance.Light)
+        presenter.selectAppearance(QuizAppearance.Dark)
+        presenter.selectAppearance(QuizAppearance.System)
+
+        assertEquals(QuizAppearance.System, preferences.settings().appearance)
+        assertEquals(QuizSecret.Chameleon, presenter.navigation.selectedSecret)
+        assertEquals(setOf(QuizSecret.Chameleon), preferences.secrets())
+    }
+}

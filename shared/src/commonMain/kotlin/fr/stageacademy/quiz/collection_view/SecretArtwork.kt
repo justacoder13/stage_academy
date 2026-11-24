@@ -39,6 +39,8 @@ internal fun SecretArtwork(secret: QuizSecret, modifier: Modifier = Modifier) {
         QuizSecret.Key -> Color(0xFFC5DDA9)
         QuizSecret.Rocket -> Color(0xFFDBBFF8)
         QuizSecret.Constellation -> Color(0xFFA9B9F5)
+        QuizSecret.Bicorne -> Color(0xFFBBCAEE)
+        QuizSecret.ImperialBee -> Color(0xFFF4D178)
         else -> Color.hsv(((secret.ordinal - 12) * 34f) % 360f, 0.28f, 0.96f)
     }
     Box(modifier.clip(RoundedCornerShape(16.dp)).clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
@@ -130,6 +132,77 @@ private fun DrawScope.drawSecret(secret: QuizSecret) {
             trace(20f, 48f, 30f, 28f, 43f, 38f, 58f, 23f, 56f, 54f, 43f, 38f)
             listOf(Offset(20f, 48f), Offset(30f, 28f), Offset(43f, 38f), Offset(58f, 23f), Offset(56f, 54f))
                 .forEach { drawCircle(Ink, 3.5f, it) }
+        }
+        QuizSecret.Carousel -> {
+            for (x in listOf(15f, 32f, 49f)) {
+                drawRoundRect(Ink, Offset(x, 30f), Size(16f, 22f), CornerRadius(3f), style = Outline)
+            }
+            trace(25f, 24f, 54f, 24f, 48f, 19f)
+            trace(55f, 58f, 26f, 58f, 32f, 63f)
+        }
+        QuizSecret.Chameleon -> {
+            drawOval(Ink, Offset(23f, 28f), Size(29f, 20f), style = Outline)
+            drawCircle(Ink, 9f, Offset(54f, 29f), style = Outline)
+            drawCircle(Ink, 2f, Offset(56f, 27f))
+            drawArc(Ink, 38f, 305f, false, Offset(14f, 37f), Size(20f, 20f), style = Outline)
+            trace(36f, 47f, 34f, 54f, 42f, 54f)
+        }
+        QuizSecret.Boomerang -> {
+            trace(27f, 59f, 22f, 27f, 27f, 23f, 60f, 24f, 63f, 32f, 36f, 37f, 35f, 58f, 27f, 59f)
+            trace(51f, 24f, 53f, 34f)
+        }
+        QuizSecret.Bicorne -> {
+            val hat = Path().apply {
+                moveTo(13f, 47f)
+                quadraticTo(23f, 47f, 28f, 35f)
+                quadraticTo(40f, 14f, 52f, 35f)
+                quadraticTo(57f, 47f, 67f, 47f)
+                quadraticTo(62f, 57f, 40f, 55f)
+                quadraticTo(18f, 57f, 13f, 47f)
+                close()
+            }
+            drawPath(hat, Ink)
+            drawCircle(Color(0xFFB5484C), 7f, Offset(40f, 41f))
+            drawCircle(Color.White, 4.5f, Offset(40f, 41f))
+            drawCircle(Color(0xFF3D64A7), 2.5f, Offset(40f, 41f))
+        }
+        QuizSecret.Ice -> {
+            trace(40f, 18f, 61f, 29f, 61f, 51f, 40f, 63f, 19f, 51f, 19f, 29f, 40f, 18f)
+            trace(19f, 29f, 40f, 41f, 61f, 29f)
+            trace(40f, 41f, 40f, 63f)
+            trace(46f, 49f, 54f, 44f)
+        }
+        QuizSecret.Cartographer -> {
+            trace(16f, 27f, 31f, 22f, 49f, 29f, 64f, 23f, 64f, 54f, 49f, 60f, 31f, 53f, 16f, 58f, 16f, 27f)
+            trace(31f, 22f, 31f, 53f)
+            trace(49f, 29f, 49f, 60f)
+            drawCircle(Ink, 3f, Offset(40f, 42f))
+        }
+        QuizSecret.Trapdoor -> {
+            trace(17f, 48f, 30f, 33f, 52f, 32f, 64f, 47f, 51f, 58f, 17f, 48f)
+            trace(30f, 33f, 34f, 18f, 55f, 20f, 52f, 32f)
+            trace(39f, 25f, 47f, 26f)
+            trace(45f, 39f, 45f, 49f, 41f, 45f)
+        }
+        QuizSecret.Zigzag -> {
+            trace(16f, 54f, 27f, 27f, 39f, 53f, 50f, 27f, 62f, 51f)
+            drawCircle(Ink, 3f, Offset(62f, 51f))
+        }
+        QuizSecret.ImperialBee -> {
+            drawOval(Color(0xFFE1AE3A), Offset(30f, 35f), Size(20f, 24f))
+            drawOval(Ink, Offset(30f, 35f), Size(20f, 24f), style = Outline)
+            drawOval(Ink, Offset(20f, 31f), Size(14f, 13f), style = Outline)
+            drawOval(Ink, Offset(46f, 31f), Size(14f, 13f), style = Outline)
+            trace(30f, 44f, 50f, 44f)
+            trace(32f, 51f, 48f, 51f)
+            drawCircle(Ink, 5f, Offset(40f, 31f))
+            trace(34f, 24f, 32f, 17f, 40f, 21f, 48f, 17f, 46f, 24f)
+        }
+        QuizSecret.Comet -> {
+            drawCircle(Ink, 9f, Offset(51f, 31f), style = Outline)
+            trace(44f, 35f, 20f, 46f)
+            trace(51f, 40f, 29f, 57f)
+            trace(43f, 27f, 27f, 35f)
         }
         else -> Unit
     }
