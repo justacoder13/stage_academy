@@ -21,8 +21,12 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import fr.stageacademy.quiz.collection_view.QuizSecret
+import fr.stageacademy.quiz.collection_view.SecretFloat
+import fr.stageacademy.quiz.collection_view.encodeSecretFloats
+import fr.stageacademy.quiz.collection_view.loadSecretFloats
 import fr.stageacademy.quiz.leaderboard_view.DesktopLeaderboardStore
 import fr.stageacademy.quiz.leaderboard_view.LeaderboardStore
+import fr.stageacademy.quiz.leaderboard_view.leaderboardStore
 import fr.stageacademy.quiz.profile_view.DesktopPhotoFiles
 import fr.stageacademy.quiz.profile_view.DesktopProfileScreen
 import fr.stageacademy.quiz.profile_view.ProfileIdentity
@@ -98,7 +102,7 @@ internal actual fun rememberQuizPreferences(): QuizPreferences =
 
 @Composable
 internal actual fun rememberLeaderboardStore(): LeaderboardStore =
-    remember { DesktopLeaderboardStore(dataDirectory) }
+    remember { leaderboardStore(DesktopLeaderboardStore(dataDirectory)) }
 
 @Composable
 internal actual fun rememberProfile(scope: CoroutineScope): ProfilePanel = remember(scope) {
@@ -139,10 +143,11 @@ private class DesktopQuizPreferences(private val preferences: Preferences) : Qui
         soundEnabled = preferences.getBoolean("soundEnabled", true),
     )
 
-    override fun secrets(): Set<QuizSecret> {
-        val names = preferences.get("foundSecrets", "").split(',').toSet()
-        return QuizSecret.entries.filter { it.name in names }.toSet()
-    }
+    override fun secrets() = loadSecretFloats(
+        preferences.get("secretFloats", ""),
+        preferences.get("foundSecrets", "").split(',').toSet(),
+        ::saveSecrets,
+    )
 
     override fun saveSettings(settings: QuizSettings) {
         preferences.put("appearance", settings.appearance.name)
@@ -151,7 +156,14 @@ private class DesktopQuizPreferences(private val preferences: Preferences) : Qui
         preferences.putBoolean("soundEnabled", settings.soundEnabled)
     }
 
-    override fun saveSecrets(secrets: Set<QuizSecret>) {
-        preferences.put("foundSecrets", secrets.joinToString(",") { it.name })
+    override fun saveSecrets(secrets: Map<QuizSecret, SecretFloat>) {
+        preferences.put("secretFloats", encodeSecretFloats(secrets))
+        preferences.put("foundSecrets", secrets.keys.joinToString(",") { it.name })
+    }
+
+    override fun hasNightCitySignal() = preferences.getBoolean("nightCitySignal", false)
+
+    override fun saveNightCitySignal() {
+        preferences.putBoolean("nightCitySignal", true)
     }
 }

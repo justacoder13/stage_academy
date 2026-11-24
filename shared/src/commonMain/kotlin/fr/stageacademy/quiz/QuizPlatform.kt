@@ -2,6 +2,7 @@ package fr.stageacademy.quiz
 
 import androidx.compose.runtime.Composable
 import fr.stageacademy.quiz.collection_view.QuizSecret
+import fr.stageacademy.quiz.collection_view.SecretFloat
 import fr.stageacademy.quiz.leaderboard_view.LeaderboardStore
 import fr.stageacademy.quiz.profile_view.ProfilePanel
 import fr.stageacademy.quiz.settings_view.QuizSettings
@@ -10,9 +11,11 @@ import kotlinx.coroutines.CoroutineScope
 
 internal interface QuizPreferences {
     fun settings(): QuizSettings
-    fun secrets(): Set<QuizSecret>
+    fun secrets(): Map<QuizSecret, SecretFloat>
     fun saveSettings(settings: QuizSettings)
-    fun saveSecrets(secrets: Set<QuizSecret>)
+    fun saveSecrets(secrets: Map<QuizSecret, SecretFloat>)
+    fun hasNightCitySignal(): Boolean
+    fun saveNightCitySignal()
 }
 
 internal expect fun elapsedMillis(): Long

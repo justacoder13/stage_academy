@@ -5,6 +5,7 @@ import fr.stageacademy.quiz.QuizPreferences
 import fr.stageacademy.quiz.challenge_view.ChallengeMode
 import fr.stageacademy.quiz.challenge_view.ChallengePresenter
 import fr.stageacademy.quiz.collection_view.QuizSecret
+import fr.stageacademy.quiz.collection_view.SecretFloat
 import fr.stageacademy.quiz.leaderboard_view.LeaderboardPresenter
 import fr.stageacademy.quiz.leaderboard_view.LeaderboardStore
 import fr.stageacademy.quiz.leaderboard_view.PlayerRanking
@@ -36,11 +37,14 @@ class QuizNavigationPresenterTest {
     }
     private val preferences = object : QuizPreferences {
         private var settings = QuizSettings()
-        private var secrets = emptySet<QuizSecret>()
+        private var secrets = emptyMap<QuizSecret, SecretFloat>()
+        private var signal = false
         override fun settings() = settings
         override fun secrets() = secrets
         override fun saveSettings(settings: QuizSettings) { this.settings = settings }
-        override fun saveSecrets(secrets: Set<QuizSecret>) { this.secrets = secrets }
+        override fun saveSecrets(secrets: Map<QuizSecret, SecretFloat>) { this.secrets = secrets }
+        override fun hasNightCitySignal() = signal
+        override fun saveNightCitySignal() { signal = true }
     }
 
     @Test
@@ -102,7 +106,7 @@ class QuizNavigationPresenterTest {
 
         assertEquals(QuizAppearance.System, preferences.settings().appearance)
         assertEquals(QuizSecret.Chameleon, presenter.navigation.selectedSecret)
-        assertEquals(setOf(QuizSecret.Chameleon), preferences.secrets())
+        assertEquals(setOf(QuizSecret.Chameleon), preferences.secrets().keys)
     }
 
     @Test
@@ -120,7 +124,10 @@ class QuizNavigationPresenterTest {
         val second = assertNotNull(presenter.round.question)
         presenter.answerNormal(second.choices.first { it != second.correctAnswer })
         presenter.discoverSecret(QuizSecret.Bug)
+        val originalFloat = assertNotNull(presenter.secretFloats[QuizSecret.Bug])
         presenter.discoverSecret(QuizSecret.Bug)
+        assertEquals(originalFloat, presenter.secretFloats[QuizSecret.Bug])
+        assertEquals(originalFloat, preferences.secrets()[QuizSecret.Bug])
         assertEquals(listOf(QuizSound.Correct, QuizSound.Incorrect, QuizSound.Secret), heard)
     }
 
@@ -137,5 +144,24 @@ class QuizNavigationPresenterTest {
         }
         challenge.next()
         assertEquals(List(5) { QuizSound.Correct } + QuizSound.Perfect, heard)
+    }
+
+    @Test
+    fun theNightCitySignalOnlyUnlocksOnANewLaunch() {
+        val quiz = QuizPresenter(quizQuestions)
+        val challenge = ChallengePresenter()
+        val first = QuizNavigationPresenter(quiz, challenge, leaderboard, profile, preferences)
+        first.openAbout()
+        assertTrue(!preferences.hasNightCitySignal())
+
+        first.updateSettings(QuizSettings(appearance = QuizAppearance.Dark))
+        first.openAbout()
+        first.openAbout()
+        assertTrue(preferences.hasNightCitySignal())
+        assertNull(first.navigation.selectedSecret)
+
+        val second = QuizNavigationPresenter(quiz, challenge, leaderboard, profile, preferences)
+        second.openAbout()
+        assertEquals(QuizSecret.NightCitySignal, second.navigation.selectedSecret)
     }
 }

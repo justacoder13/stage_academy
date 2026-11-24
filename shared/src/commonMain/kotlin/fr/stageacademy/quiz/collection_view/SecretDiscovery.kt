@@ -67,6 +67,9 @@ internal class SecretDiscovery {
             else -> null
         }
 
+        fun forTimedAnswer(mode: ChallengeMode, secondsLeft: Int): QuizSecret? =
+            QuizSecret.Clutch.takeIf { mode == ChallengeMode.Timer && secondsLeft in 1..3 }
+
         fun forChallenge(game: ChallengeState, secondsLeft: Int): QuizSecret? = when (game.mode) {
             ChallengeMode.Timer -> when {
                 game.end == ChallengeEnd.TimeUp && game.index == 0 && game.choice == null -> QuizSecret.Ice

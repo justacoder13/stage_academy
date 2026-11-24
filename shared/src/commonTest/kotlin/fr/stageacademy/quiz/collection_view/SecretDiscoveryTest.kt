@@ -11,7 +11,7 @@ import kotlin.test.assertNull
 class SecretDiscoveryTest {
     @Test
     fun theNewCardsFollowTheOriginalCardsAndTheImperialClueUsesStableNumbers() {
-        assertEquals(32, QuizSecret.entries.size)
+        assertEquals(36, QuizSecret.entries.size)
         assertEquals(21, QuizSecret.Crown.ordinal)
         assertEquals(18, QuizSecret.Branch.ordinal + 1)
         assertEquals(4, QuizSecret.Music.ordinal + 1)

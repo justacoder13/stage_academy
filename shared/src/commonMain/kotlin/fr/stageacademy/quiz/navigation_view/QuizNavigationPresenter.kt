@@ -9,6 +9,7 @@ import fr.stageacademy.quiz.challenge_view.ChallengeMode
 import fr.stageacademy.quiz.challenge_view.ChallengePresenter
 import fr.stageacademy.quiz.collection_view.QuizSecret
 import fr.stageacademy.quiz.collection_view.SecretDiscovery
+import fr.stageacademy.quiz.collection_view.SecretFloat
 import fr.stageacademy.quiz.leaderboard_view.LeaderboardPresenter
 import fr.stageacademy.quiz.profile_view.ProfileIdentity
 import fr.stageacademy.quiz.quiz_view.QuizContract
@@ -36,6 +37,7 @@ internal data class QuizNavigationState(
     val selectedSecret: QuizSecret? = null,
     val visitedSettingsDuringQuiz: Boolean = false,
     val visitedCollectionDuringPause: Boolean = false,
+    val nightCitySignalFromPreviousLaunch: Boolean = false,
 )
 
 internal class QuizNavigationPresenter(
@@ -44,7 +46,9 @@ internal class QuizNavigationPresenter(
     val leaderboard: LeaderboardPresenter,
     private val profile: ProfileIdentity,
     private val preferences: QuizPreferences,
-    initial: QuizNavigationState = QuizNavigationState(),
+    initial: QuizNavigationState = QuizNavigationState(
+        nightCitySignalFromPreviousLaunch = preferences.hasNightCitySignal(),
+    ),
     private val sounds: QuizSoundPlayer = QuizSoundPlayer {},
 ) {
     private val discovery = SecretDiscovery()
@@ -54,8 +58,9 @@ internal class QuizNavigationPresenter(
         private set
     var settings by mutableStateOf(preferences.settings())
         private set
-    var foundSecrets by mutableStateOf(preferences.secrets())
+    var secretFloats by mutableStateOf(preferences.secrets())
         private set
+    val foundSecrets: Set<QuizSecret> get() = secretFloats.keys
 
     val suggestedPlayer: String get() = profile.savedName
     val canResumeNormal: Boolean get() = navigation.quizStarted && round.question != null
@@ -66,7 +71,12 @@ internal class QuizNavigationPresenter(
     fun openHome() { navigation = navigation.copy(page = QuizPage.Start) }
     fun openProfile() { navigation = navigation.copy(page = QuizPage.Profile) }
     fun openModes() { navigation = navigation.copy(page = QuizPage.Challenges) }
-    fun openAbout() { navigation = navigation.copy(page = QuizPage.About) }
+    fun openAbout() {
+        navigation = navigation.copy(page = QuizPage.About)
+        if (settings.appearance != QuizAppearance.Dark || QuizSecret.NightCitySignal in foundSecrets) return
+        if (navigation.nightCitySignalFromPreviousLaunch) unlock(QuizSecret.NightCitySignal)
+        else preferences.saveNightCitySignal()
+    }
     fun openLeaderboard() { navigation = navigation.copy(page = QuizPage.Leaderboard) }
 
     fun openSettings() {
@@ -109,6 +119,8 @@ internal class QuizNavigationPresenter(
     fun closeSecret() { navigation = navigation.copy(selectedSecret = null) }
 
     fun discoverCarousel() { unlock(QuizSecret.Carousel) }
+    fun discoverCrosshair() { unlock(QuizSecret.Crosshair) }
+    fun discoverRhythm() { unlock(QuizSecret.NeverFadeAway) }
 
     private fun unlock(vararg candidates: QuizSecret?): Boolean {
         val unlocked = candidates.filterNotNull().filterNot { it in foundSecrets }
@@ -119,10 +131,11 @@ internal class QuizNavigationPresenter(
     }
 
     private fun saveDiscoveries(secrets: List<QuizSecret>) {
-        val updated = foundSecrets + secrets
-        if (updated != foundSecrets) {
-            foundSecrets = updated
+        val newlyFound = secrets.distinct().filterNot { it in secretFloats }.associateWith { SecretFloat.roll() }
+        if (newlyFound.isNotEmpty()) {
+            val updated = secretFloats + newlyFound
             preferences.saveSecrets(updated)
+            secretFloats = updated
             sounds.play(QuizSound.Secret)
         }
     }
@@ -159,6 +172,15 @@ internal class QuizNavigationPresenter(
     fun startChallenge(mode: ChallengeMode) {
         challenge.start(mode)
         unlock(discovery.startChallenge(mode))
+    }
+
+    fun answerChallenge(choice: String) {
+        val previousChoice = challenge.state?.choice
+        challenge.answer(choice)
+        val game = challenge.state ?: return
+        if (previousChoice == null && game.choice != null && game.choice == challenge.question?.correctAnswer) {
+            unlock(SecretDiscovery.forTimedAnswer(game.mode, challenge.secondsLeft))
+        }
     }
 
     fun checkChallengeDiscovery() {
@@ -245,6 +267,7 @@ internal class QuizNavigationPresenter(
                         "selectedSecret" to selectedSecret?.name,
                         "visitedSettings" to visitedSettingsDuringQuiz,
                         "visitedCollection" to visitedCollectionDuringPause,
+                        "nightCitySignalFromPreviousLaunch" to nightCitySignalFromPreviousLaunch,
                     )
                 }
             },
@@ -261,6 +284,7 @@ internal class QuizNavigationPresenter(
                     selectedSecret = QuizSecret.entries.firstOrNull { it.name == saved["selectedSecret"] },
                     visitedSettingsDuringQuiz = saved["visitedSettings"] == true,
                     visitedCollectionDuringPause = saved["visitedCollection"] == true,
+                    nightCitySignalFromPreviousLaunch = saved["nightCitySignalFromPreviousLaunch"] == true,
                 )
                 QuizNavigationPresenter(quiz, challenge, leaderboard, profile, preferences, state, sounds)
             },

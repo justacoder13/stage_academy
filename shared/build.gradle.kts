@@ -1,10 +1,35 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.net.URI
 
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
     id("com.android.kotlin.multiplatform.library")
     id("org.jetbrains.compose")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+val leaderboardUrl = providers.gradleProperty("leaderboardUrl").orElse("").map { value ->
+    val url = value.trim().trimEnd('/')
+    if (url.isNotEmpty()) {
+        val uri = URI(url)
+        require(uri.scheme in listOf("http", "https") && uri.host != null &&
+            uri.userInfo == null && uri.query == null && uri.fragment == null
+        ) { "leaderboardUrl must be an HTTP or HTTPS base URL." }
+    }
+    url
+}
+val leaderboardConfigDirectory = layout.buildDirectory.dir("generated/leaderboard")
+val generateLeaderboardConfig = tasks.register("generateLeaderboardConfig") {
+    inputs.property("leaderboardUrl", leaderboardUrl)
+    outputs.dir(leaderboardConfigDirectory)
+    doLast {
+        val url = leaderboardUrl.get().replace("$", "\\$")
+        val directory = leaderboardConfigDirectory.get().asFile
+        directory.mkdirs()
+        directory.resolve("LeaderboardConfig.kt").writeText(
+            "package fr.stageacademy.quiz.leaderboard_view\n\ninternal const val LeaderboardUrl = \"$url\"\n",
+        )
+    }
 }
 
 kotlin {
@@ -24,6 +49,7 @@ kotlin {
         implementation(compose.material3)
         implementation(compose.components.resources)
     }
+    sourceSets.commonMain { kotlin.srcDir(generateLeaderboardConfig) }
 
     sourceSets.androidMain {
         kotlin.srcDir("src/jvmShared/kotlin")

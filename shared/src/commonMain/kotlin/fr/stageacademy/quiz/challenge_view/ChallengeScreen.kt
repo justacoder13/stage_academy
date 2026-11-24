@@ -15,7 +15,12 @@ import fr.stageacademy.quiz.shared_view.QuizTag
 import kotlinx.coroutines.delay
 
 @Composable
-internal fun ChallengeScreen(presenter: ChallengeContract, horizontalAnswers: Boolean, progress: () -> Float) {
+internal fun ChallengeScreen(
+    presenter: ChallengeContract,
+    horizontalAnswers: Boolean,
+    progress: () -> Float,
+    onAnswer: (String) -> Unit,
+) {
     val game = presenter.state ?: return
     val question = presenter.question ?: return
     LaunchedEffect(game.deadline, game.end) {
@@ -50,7 +55,7 @@ internal fun ChallengeScreen(presenter: ChallengeContract, horizontalAnswers: Bo
             selectedChoice = game.choice,
             isCorrect = game.choice == question.correctAnswer,
             horizontalAnswers = horizontalAnswers,
-            onChoice = presenter::answer,
+            onChoice = onAnswer,
             status = if (game.deadline != null) {
                 {
                     val colors = MaterialTheme.colorScheme

@@ -1,6 +1,7 @@
 package fr.stageacademy.quiz.collection_view
 
 import fr.stageacademy.quiz.shared_view.withQuizClickSound
+import fr.stageacademy.quiz.shared_view.QuizTag
 
 import fr.stageacademy.quiz.elapsedMillis
 import org.jetbrains.compose.resources.StringResource
@@ -43,6 +44,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import fr.stageacademy.quiz.resources.Res
 import fr.stageacademy.quiz.resources.*
@@ -82,6 +84,10 @@ internal enum class QuizSecret(val title: StringResource, val description: Strin
     Zigzag(Res.string.secret_zigzag, Res.string.story_zigzag, Res.string.hint_zigzag),
     ImperialBee(Res.string.secret_imperial_bee, Res.string.story_imperial_bee, Res.string.hint_imperial_bee),
     Comet(Res.string.secret_comet, Res.string.story_comet, Res.string.hint_comet),
+    Crosshair(Res.string.secret_crosshair, Res.string.story_crosshair, Res.string.hint_crosshair),
+    Clutch(Res.string.secret_clutch, Res.string.story_clutch, Res.string.hint_clutch),
+    NeverFadeAway(Res.string.secret_never_fade_away, Res.string.story_never_fade_away, Res.string.hint_never_fade_away),
+    NightCitySignal(Res.string.secret_night_city, Res.string.story_night_city, Res.string.hint_night_city),
 }
 
 @Composable
@@ -122,10 +128,11 @@ private enum class CollectionFilter(val label: StringResource) {
 @Suppress("UnusedBoxWithConstraintsScope")
 @Composable
 internal fun SecretCollection(
-    foundSecrets: Set<QuizSecret>,
+    secretFloats: Map<QuizSecret, SecretFloat>,
     onOpen: (QuizSecret) -> Unit,
     onDiscover: (QuizSecret) -> Unit,
 ) {
+    val foundSecrets = secretFloats.keys
     val secrets = QuizSecret.entries
     var filter by rememberSaveable { mutableStateOf(CollectionFilter.All) }
     val visibleSecrets = when (filter) {
@@ -192,7 +199,7 @@ internal fun SecretCollection(
             visibleSecrets.chunked(columns).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     row.forEach { secret ->
-                        SecretTile(secret, secret in foundSecrets, { onOpen(secret) }, Modifier.weight(1f))
+                        SecretTile(secret, secretFloats[secret], { onOpen(secret) }, Modifier.weight(1f))
                     }
                     if (row.size < columns) androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
                 }
@@ -202,7 +209,8 @@ internal fun SecretCollection(
 }
 
 @Composable
-private fun SecretTile(secret: QuizSecret, found: Boolean, onOpen: () -> Unit, modifier: Modifier) {
+private fun SecretTile(secret: QuizSecret, value: SecretFloat?, onOpen: () -> Unit, modifier: Modifier) {
+    val found = value != null
     val status = stringResource(if (found) Res.string.secret_found else Res.string.secret_locked)
     val colors = MaterialTheme.colorScheme
     Surface(
@@ -237,7 +245,9 @@ private fun SecretTile(secret: QuizSecret, found: Boolean, onOpen: () -> Unit, m
                 style = MaterialTheme.typography.labelLarge,
                 textAlign = TextAlign.Center,
             )
-            if (!found) {
+            if (value != null) {
+                SecretFloatLabel(value, showFullName = false)
+            } else {
                 Text(
                     stringResource(Res.string.collection_hint_action),
                     color = colors.onSurfaceVariant,
@@ -251,11 +261,12 @@ private fun SecretTile(secret: QuizSecret, found: Boolean, onOpen: () -> Unit, m
 @Composable
 internal fun SecretEntryDialog(
     secret: QuizSecret,
-    foundSecrets: Set<QuizSecret>,
+    secretFloats: Map<QuizSecret, SecretFloat>,
     onDismiss: () -> Unit,
     onDiscover: (QuizSecret) -> Unit,
 ) {
-    val found = secret in foundSecrets
+    val value = secretFloats[secret]
+    val found = value != null
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -263,19 +274,47 @@ internal fun SecretEntryDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                if (found) {
+                if (value != null) {
                     SecretArtwork(
                         secret,
                         Modifier.size(82.dp).secretGesture(
                             QuizSecret.Rocket,
                             onDiscover,
-                            enabled = secret == QuizSecret.Star && foundSecrets.size >= 8,
+                            enabled = secret == QuizSecret.Star && secretFloats.size >= 8,
                         ),
                     )
+                    SecretFloatLabel(value, showFullName = true)
                 }
                 Text(stringResource(if (found) secret.description else secret.hint))
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.close)) } },
     )
+}
+
+@Composable
+private fun SecretFloatLabel(value: SecretFloat, showFullName: Boolean) {
+    val quality = value.quality
+    val badge = when (quality) {
+        SecretQuality.FactoryNew -> Color(0xFFFBE18F)
+        SecretQuality.MinimalWear -> Color(0xFFC8D9FF)
+        SecretQuality.FieldTested -> Color(0xFFAEE3CD)
+        SecretQuality.WellWorn -> Color(0xFFE8D7C5)
+        SecretQuality.BattleScarred -> Color(0xFFE2E5E3)
+    }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalAlignment = if (showFullName) Alignment.Start else Alignment.CenterHorizontally,
+    ) {
+        QuizTag(
+            text = if (showFullName) "${quality.abbreviation} · ${quality.displayName}" else quality.abbreviation,
+            color = badge,
+            contentColor = QuizForest,
+        )
+        Text(
+            text = if (showFullName) stringResource(Res.string.secret_float_value, value.decimal) else value.decimal,
+            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }

@@ -8,10 +8,11 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 
-internal class DesktopLeaderboardStore(private val directory: File) : LeaderboardStore {
+internal class DesktopLeaderboardStore(private val directory: File) : LocalLeaderboardStore {
     private val file = File(directory, "quiz_leaderboard.json")
 
     override fun rankings(): List<PlayerRanking> = synchronized(lock) { rankings(readGames()) }
+    override fun rounds(): List<RankedRound> = synchronized(lock) { decodeRounds(readGames()).toList() }
 
     override fun record(id: String, player: String, points: Int): List<PlayerRanking> = synchronized(lock) {
         val games = readGames()
@@ -38,11 +39,7 @@ internal class DesktopLeaderboardStore(private val directory: File) : Leaderboar
         throw IOException("Invalid leaderboard", error)
     }
 
-    private fun rankings(games: JSONObject) = rankPlayers(
-        games.keys().asSequence().mapNotNull { id ->
-            games.optJSONObject(id)?.let { it.optString("player") to it.optInt("points") }
-        },
-    )
+    private fun rankings(games: JSONObject) = rankPlayers(decodeRounds(games).map { it.player to it.points })
 
     private companion object {
         val lock = Any()

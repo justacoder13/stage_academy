@@ -148,7 +148,10 @@ internal fun QuizNavigation(
                                 onAbout = presenter::openAbout,
                                 onLeaderboard = presenter::openLeaderboard,
                             )
-                            QuizPage.About -> AboutScreen()
+                            QuizPage.About -> AboutScreen(
+                                onCircle = (presenter::discoverCrosshair).takeUnless { QuizSecret.Crosshair in foundSecrets },
+                                onRhythm = (presenter::discoverRhythm).takeUnless { QuizSecret.NeverFadeAway in foundSecrets },
+                            )
                             QuizPage.Challenges -> {
                                 if (challengeGame == null) {
                                     val canResumeNormal = presenter.canResumeNormal
@@ -158,14 +161,20 @@ internal fun QuizNavigation(
                                         onChallenge = presenter::startChallenge,
                                     )
                                 } else {
-                                    ChallengeScreen(challenge, settings.horizontalAnswers, progress = { challengeProgress.value })
+                                    ChallengeScreen(
+                                        challenge,
+                                        settings.horizontalAnswers,
+                                        progress = { challengeProgress.value },
+                                        onAnswer = presenter::answerChallenge,
+                                    )
                                 }
                             }
                             QuizPage.Leaderboard -> LeaderboardScreen(
-                                leaderboard.rankings, leaderboard.loading, leaderboard.failed, leaderboard::load,
+                                leaderboard.rankings, leaderboard.loading, leaderboard.failed,
+                                leaderboard.shared, leaderboard.source, leaderboard::load,
                             )
                             QuizPage.Collection -> SecretCollection(
-                                foundSecrets = foundSecrets,
+                                secretFloats = presenter.secretFloats,
                                 onOpen = presenter::openSecret,
                                 onDiscover = presenter::discoverSecret,
                             )
@@ -265,7 +274,6 @@ private fun NavigationActions(presenter: QuizNavigationPresenter, guestName: Str
 private fun NavigationDialogs(presenter: QuizNavigationPresenter) {
     val navigation = presenter.navigation
     val leaderboard = presenter.leaderboard
-    val foundSecrets = presenter.foundSecrets
     if (navigation.choosingPlayer) {
         PlayerDialog(presenter.suggestedPlayer, leaderboard.rankings, presenter::cancelPlayerChoice, presenter::startNormal)
     }
@@ -288,6 +296,6 @@ private fun NavigationDialogs(presenter: QuizNavigationPresenter) {
     }
 
     navigation.selectedSecret?.let { secret ->
-        SecretEntryDialog(secret, foundSecrets, presenter::closeSecret, presenter::discoverSecret)
+        SecretEntryDialog(secret, presenter.secretFloats, presenter::closeSecret, presenter::discoverSecret)
     }
 }

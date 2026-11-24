@@ -46,6 +46,9 @@
     <string name="challenge_time_up">Temps écoulé !</string>
     <string name="challenge_streak_end">Fin de la série</string>
     <string name="leaderboard_description">Chaque bonne réponse rapporte un point. Les points des parties terminées s’additionnent pour chaque joueur sur cet appareil.</string>
+    <string name="leaderboard_shared_description">Les points des parties terminées sont partagés entre les appareils. Utilise le même nom de joueur pour retrouver ton total.</string>
+    <string name="leaderboard_offline">Serveur indisponible. Seuls les scores de cet appareil sont affichés pour le moment.</string>
+    <string name="leaderboard_refresh">Actualiser le classement</string>
     <string name="leaderboard_choose_player">Qui joue ?</string>
     <string name="leaderboard_existing_players">Joueurs déjà classés</string>
     <string name="leaderboard_empty">Le premier score apparaîtra après une partie terminée.</string>
@@ -222,10 +225,23 @@
     <string name="secret_comet">La comète</string>
     <string name="story_comet">Cinq bonnes réponses et encore du temps. La comète a à peine quitté le ciel !</string>
     <string name="hint_comet">Elle veut tout réussir alors qu’un tiers du Chrono brille encore.</string>
+    <string name="secret_crosshair">Le viseur de CS2</string>
+    <string name="story_crosshair">Tu as fait le tour du viseur. Il ne manquait plus que le point au milieu.</string>
+    <string name="hint_crosshair">À propos du quiz, un cercle tracé autour des mots fait apparaître son centre.</string>
+    <string name="secret_clutch">Clutch de CS2</string>
+    <string name="story_clutch">Une bonne réponse au dernier instant. Ce round était loin d’être perdu !</string>
+    <string name="hint_clutch">Quand le Chrono n’a plus que quelques secondes, un bon choix peut encore faire la différence.</string>
+    <string name="secret_never_fade_away">Never Fade Away</string>
+    <string name="story_never_fade_away">Un refrain de Night City s’est caché entre quatre temps. Tu as trouvé son écho.</string>
+    <string name="hint_never_fade_away">Le titre d’À propos attend quatre notes. Les deux premières se suivent, puis vient un silence et les deux dernières se rapprochent.</string>
+    <string name="secret_night_city">Signal de Night City</string>
+    <string name="story_night_city">Tu es revenu après la coupure. Le néon de Night City émettait toujours.</string>
+    <string name="hint_night_city">Dans le thème sombre, À propos laisse une trace. Quitte le quiz et reviens de nuit pour voir si elle tient.</string>
     <string name="collection_all">Tout</string>
     <string name="collection_discovered">Trouvés</string>
     <string name="collection_remaining">À trouver</string>
     <string name="collection_no_discoveries">Tes découvertes apparaîtront ici.</string>
     <string name="collection_complete">Tu as découvert tous les secrets !</string>
     <string name="collection_hint_action">Voir l’indice</string>
+    <string name="secret_float_value">Float %1$s</string>
 </resources>

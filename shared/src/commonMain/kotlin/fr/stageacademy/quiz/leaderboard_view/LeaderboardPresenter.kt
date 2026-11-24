@@ -10,6 +10,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 internal class LeaderboardPresenter(private val store: LeaderboardStore, private val scope: CoroutineScope) {
+    private var refreshAfterLoad = false
+    val shared: Boolean get() = store.shared
+    var source by mutableStateOf(LeaderboardSource.Local)
+        private set
     var rankings by mutableStateOf(emptyList<PlayerRanking>())
         private set
     var loading by mutableStateOf(false)
@@ -25,11 +29,17 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
         failed = false
         scope.launch {
             try {
-                rankings = withContext(platformIo) { store.rankings() }
+                val standings = withContext(platformIo) { store.standings() }
+                rankings = standings.players
+                source = standings.source
             } catch (_: StorageException) {
                 failed = true
             } finally {
                 loading = false
+                if (refreshAfterLoad) {
+                    refreshAfterLoad = false
+                    load()
+                }
             }
         }
     }
@@ -38,13 +48,19 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
         if (recording) return
         recording = true
         scope.launch {
+            var recorded = false
             try {
-                rankings = withContext(platformIo) { store.record(id, name, points) }
+                val localRankings = withContext(platformIo) { store.record(id, name, points) }
+                if (source != LeaderboardSource.Shared) rankings = localRankings
+                recorded = true
                 onRecorded()
             } catch (_: StorageException) {
                 onFailure()
             } finally {
                 recording = false
+            }
+            if (recorded && store.shared) {
+                if (loading) refreshAfterLoad = true else load()
             }
         }
     }

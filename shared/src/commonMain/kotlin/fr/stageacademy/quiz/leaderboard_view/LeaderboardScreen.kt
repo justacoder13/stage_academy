@@ -27,16 +27,30 @@ import fr.stageacademy.quiz.resources.*
 import fr.stageacademy.quiz.shared_view.MenuCard
 
 @Composable
-internal fun LeaderboardScreen(players: List<PlayerRanking>, loading: Boolean, failed: Boolean, onRetry: () -> Unit) {
+internal fun LeaderboardScreen(
+    players: List<PlayerRanking>,
+    loading: Boolean,
+    failed: Boolean,
+    shared: Boolean,
+    source: LeaderboardSource,
+    onRetry: () -> Unit,
+) {
     MenuCard(title = stringResource(Res.string.leaderboard)) {
-        Text(stringResource(Res.string.leaderboard_description), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            stringResource(if (shared) Res.string.leaderboard_shared_description else Res.string.leaderboard_description),
+            style = MaterialTheme.typography.bodyMedium,
+        )
         when {
             loading -> Text(stringResource(Res.string.leaderboard_loading))
             failed -> {
                 Text(stringResource(Res.string.leaderboard_load_error))
                 TextButton(onClick = onRetry) { Text(stringResource(Res.string.leaderboard_retry)) }
             }
+            source == LeaderboardSource.Offline -> Text(stringResource(Res.string.leaderboard_offline))
             players.isEmpty() -> Text(stringResource(Res.string.leaderboard_empty))
+        }
+        if (shared && !loading && !failed) {
+            TextButton(onClick = onRetry) { Text(stringResource(Res.string.leaderboard_refresh)) }
         }
     }
     if (!loading && !failed) {

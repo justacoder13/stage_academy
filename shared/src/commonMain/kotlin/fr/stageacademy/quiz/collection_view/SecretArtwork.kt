@@ -41,6 +41,10 @@ internal fun SecretArtwork(secret: QuizSecret, modifier: Modifier = Modifier) {
         QuizSecret.Constellation -> Color(0xFFA9B9F5)
         QuizSecret.Bicorne -> Color(0xFFBBCAEE)
         QuizSecret.ImperialBee -> Color(0xFFF4D178)
+        QuizSecret.Crosshair -> Color(0xFFACD6D0)
+        QuizSecret.Clutch -> Color(0xFFF4C092)
+        QuizSecret.NeverFadeAway -> Color(0xFFB1B2FF)
+        QuizSecret.NightCitySignal -> Color(0xFFFF9ADA)
         else -> Color.hsv(((secret.ordinal - 12) * 34f) % 360f, 0.28f, 0.96f)
     }
     Box(modifier.clip(RoundedCornerShape(16.dp)).clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
@@ -203,6 +207,34 @@ private fun DrawScope.drawSecret(secret: QuizSecret) {
             trace(44f, 35f, 20f, 46f)
             trace(51f, 40f, 29f, 57f)
             trace(43f, 27f, 27f, 35f)
+        }
+        QuizSecret.Crosshair -> {
+            drawCircle(Ink, 21f, Offset(40f, 40f), style = Outline)
+            drawCircle(Color(0xFF087348), 4.5f, Offset(40f, 40f))
+            trace(40f, 14f, 40f, 27f)
+            trace(40f, 53f, 40f, 66f)
+            trace(14f, 40f, 27f, 40f)
+            trace(53f, 40f, 66f, 40f)
+        }
+        QuizSecret.Clutch -> {
+            drawRoundRect(Ink, Offset(17f, 24f), Size(46f, 32f), CornerRadius(8f), style = Outline)
+            trace(30f, 33f, 25f, 33f, 25f, 47f, 31f, 47f, 31f, 33f)
+            drawCircle(Ink, 1.6f, Offset(39f, 37f))
+            drawCircle(Ink, 1.6f, Offset(39f, 44f))
+            trace(48f, 35f, 52f, 32f, 52f, 48f)
+        }
+        QuizSecret.NeverFadeAway -> {
+            drawCircle(Ink, 22f, Offset(40f, 40f), style = Outline)
+            drawCircle(Ink.copy(alpha = 0.35f), 17f, Offset(40f, 40f), style = Stroke(1f))
+            drawCircle(Ink.copy(alpha = 0.35f), 12f, Offset(40f, 40f), style = Stroke(1f))
+            trace(21f, 40f, 28f, 40f, 34f, 30f, 40f, 51f, 45f, 37f, 51f, 40f, 59f, 40f)
+        }
+        QuizSecret.NightCitySignal -> {
+            trace(16f, 57f, 16f, 44f, 27f, 44f, 27f, 33f, 37f, 33f, 37f, 58f)
+            trace(43f, 58f, 43f, 39f, 51f, 39f, 51f, 30f, 58f, 30f, 58f, 47f, 65f, 47f, 65f, 58f)
+            drawCircle(Color(0xFF9B176E), 3f, Offset(40f, 20f))
+            drawArc(Ink, 210f, 120f, false, Offset(32f, 12f), Size(16f, 16f), style = Stroke(2f))
+            drawArc(Ink, 210f, 120f, false, Offset(26f, 6f), Size(28f, 28f), style = Stroke(2f))
         }
         else -> Unit
     }
