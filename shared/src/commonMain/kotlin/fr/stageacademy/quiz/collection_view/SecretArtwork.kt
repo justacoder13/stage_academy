@@ -45,6 +45,12 @@ internal fun SecretArtwork(secret: QuizSecret, modifier: Modifier = Modifier) {
         QuizSecret.Clutch -> Color(0xFFF4C092)
         QuizSecret.NeverFadeAway -> Color(0xFFB1B2FF)
         QuizSecret.NightCitySignal -> Color(0xFFFF9ADA)
+        QuizSecret.RubberDuck -> Color(0xFFFFDF89)
+        QuizSecret.FloppyDisk -> Color(0xFFC0E0E5)
+        QuizSecret.NeonJellyfish -> Color(0xFFB1E9F5)
+        QuizSecret.ClockworkOwl -> Color(0xFFE7BF98)
+        QuizSecret.GoldenCartridge -> Color(0xFFFFCE66)
+        QuizSecret.PocketGalaxy -> Color(0xFFC5B6FF)
         else -> Color.hsv(((secret.ordinal - 12) * 34f) % 360f, 0.28f, 0.96f)
     }
     Box(modifier.clip(RoundedCornerShape(16.dp)).clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
@@ -235,6 +241,47 @@ private fun DrawScope.drawSecret(secret: QuizSecret) {
             drawCircle(Color(0xFF9B176E), 3f, Offset(40f, 20f))
             drawArc(Ink, 210f, 120f, false, Offset(32f, 12f), Size(16f, 16f), style = Stroke(2f))
             drawArc(Ink, 210f, 120f, false, Offset(26f, 6f), Size(28f, 28f), style = Stroke(2f))
+        }
+        QuizSecret.RubberDuck -> {
+            drawOval(Ink, Offset(17f, 38f), Size(41f, 22f), style = Outline)
+            drawCircle(Ink, 12f, Offset(49f, 35f), style = Outline)
+            drawCircle(Ink, 2f, Offset(53f, 32f))
+            trace(60f, 36f, 67f, 40f, 59f, 43f)
+        }
+        QuizSecret.FloppyDisk -> {
+            trace(21f, 20f, 52f, 20f, 60f, 28f, 60f, 60f, 21f, 60f, 21f, 20f)
+            trace(30f, 20f, 30f, 34f, 49f, 34f, 49f, 20f)
+            drawRoundRect(Ink, Offset(29f, 43f), Size(23f, 17f), CornerRadius(2f), style = Outline)
+        }
+        QuizSecret.NeonJellyfish -> {
+            drawArc(Ink, 180f, 180f, false, Offset(20f, 20f), Size(40f, 36f), style = Outline)
+            trace(20f, 38f, 60f, 38f)
+            trace(29f, 39f, 31f, 47f, 27f, 55f, 30f, 62f)
+            trace(40f, 39f, 42f, 47f, 38f, 55f, 41f, 64f)
+            trace(51f, 39f, 53f, 47f, 49f, 55f, 52f, 62f)
+        }
+        QuizSecret.ClockworkOwl -> {
+            drawOval(Ink, Offset(22f, 24f), Size(36f, 38f), style = Outline)
+            trace(25f, 30f, 24f, 20f, 33f, 25f)
+            trace(47f, 25f, 56f, 20f, 55f, 30f)
+            drawCircle(Ink, 5f, Offset(32f, 37f), style = Outline)
+            drawCircle(Ink, 5f, Offset(48f, 37f), style = Outline)
+            trace(36f, 48f, 40f, 51f, 44f, 48f)
+        }
+        QuizSecret.GoldenCartridge -> {
+            drawRoundRect(Ink, Offset(21f, 23f), Size(38f, 34f), CornerRadius(5f), style = Outline)
+            trace(27f, 47f, 53f, 47f)
+            trace(40f, 29f, 43f, 34f, 49f, 36f, 43f, 38f, 40f, 43f, 37f, 38f, 31f, 36f, 37f, 34f, 40f, 29f)
+        }
+        QuizSecret.PocketGalaxy -> {
+            drawCircle(Ink, 8f, Offset(40f, 40f))
+            rotate(-28f, pivot = Offset(40f, 40f)) {
+                drawOval(Ink, Offset(15f, 30f), Size(50f, 20f), style = Outline)
+            }
+            drawCircle(Ink, 3f, Offset(25f, 26f))
+            drawCircle(Ink, 2f, Offset(57f, 51f))
+            trace(53f, 17f, 53f, 25f)
+            trace(49f, 21f, 57f, 21f)
         }
         else -> Unit
     }

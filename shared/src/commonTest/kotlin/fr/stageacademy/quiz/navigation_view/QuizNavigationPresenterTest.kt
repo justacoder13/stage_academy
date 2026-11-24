@@ -5,7 +5,8 @@ import fr.stageacademy.quiz.QuizPreferences
 import fr.stageacademy.quiz.challenge_view.ChallengeMode
 import fr.stageacademy.quiz.challenge_view.ChallengePresenter
 import fr.stageacademy.quiz.collection_view.QuizSecret
-import fr.stageacademy.quiz.collection_view.SecretFloat
+import fr.stageacademy.quiz.collection_view.CollectionProgress
+import fr.stageacademy.quiz.collection_view.SecretCrate
 import fr.stageacademy.quiz.leaderboard_view.LeaderboardPresenter
 import fr.stageacademy.quiz.leaderboard_view.LeaderboardStore
 import fr.stageacademy.quiz.leaderboard_view.PlayerRanking
@@ -37,12 +38,12 @@ class QuizNavigationPresenterTest {
     }
     private val preferences = object : QuizPreferences {
         private var settings = QuizSettings()
-        private var secrets = emptyMap<QuizSecret, SecretFloat>()
+        private var collection = CollectionProgress()
         private var signal = false
         override fun settings() = settings
-        override fun secrets() = secrets
+        override fun collection() = collection
         override fun saveSettings(settings: QuizSettings) { this.settings = settings }
-        override fun saveSecrets(secrets: Map<QuizSecret, SecretFloat>) { this.secrets = secrets }
+        override fun saveCollection(progress: CollectionProgress) { collection = progress }
         override fun hasNightCitySignal() = signal
         override fun saveNightCitySignal() { signal = true }
     }
@@ -76,7 +77,7 @@ class QuizNavigationPresenterTest {
         assertEquals(1, restored.round.score)
         assertEquals(correctAnswer, restored.round.selectedChoice)
         assertEquals(QuizSecret.Boomerang, restored.navigation.selectedSecret)
-        assertTrue(QuizSecret.Boomerang in preferences.secrets())
+        assertTrue(QuizSecret.Boomerang in preferences.collection().floats)
     }
 
     @Test
@@ -106,7 +107,7 @@ class QuizNavigationPresenterTest {
 
         assertEquals(QuizAppearance.System, preferences.settings().appearance)
         assertEquals(QuizSecret.Chameleon, presenter.navigation.selectedSecret)
-        assertEquals(setOf(QuizSecret.Chameleon), preferences.secrets().keys)
+        assertEquals(setOf(QuizSecret.Chameleon), preferences.collection().floats.keys)
     }
 
     @Test
@@ -127,7 +128,8 @@ class QuizNavigationPresenterTest {
         val originalFloat = assertNotNull(presenter.secretFloats[QuizSecret.Bug])
         presenter.discoverSecret(QuizSecret.Bug)
         assertEquals(originalFloat, presenter.secretFloats[QuizSecret.Bug])
-        assertEquals(originalFloat, preferences.secrets()[QuizSecret.Bug])
+        assertEquals(originalFloat, preferences.collection().floats[QuizSecret.Bug])
+        assertEquals(1, preferences.collection().points)
         assertEquals(listOf(QuizSound.Correct, QuizSound.Incorrect, QuizSound.Secret), heard)
     }
 
@@ -163,5 +165,34 @@ class QuizNavigationPresenterTest {
         val second = QuizNavigationPresenter(quiz, challenge, leaderboard, profile, preferences)
         second.openAbout()
         assertEquals(QuizSecret.NightCitySignal, second.navigation.selectedSecret)
+    }
+
+    @Test
+    fun fiveChallengeAnswersBuyARewardWithoutChangingTheScore() {
+        val challenge = ChallengePresenter()
+        val presenter = QuizNavigationPresenter(
+            QuizPresenter(quizQuestions), challenge, leaderboard, profile, preferences,
+        )
+        presenter.openModes()
+        presenter.startChallenge(ChallengeMode.Surprise)
+        repeat(5) {
+            val answer = assertNotNull(challenge.question).correctAnswer
+            presenter.answerChallenge(answer)
+            presenter.answerChallenge(answer)
+            challenge.next()
+        }
+        assertEquals(5, preferences.collection().points)
+        presenter.openHome()
+        presenter.openCollection()
+        presenter.openCrates()
+        presenter.buyCrate(SecretCrate.Basic)
+        val reward = assertNotNull(presenter.navigation.selectedSecret)
+        assertNotNull(reward.crateRarity)
+        assertEquals(0, preferences.collection().points)
+        assertEquals(5, challenge.state?.score)
+        assertTrue(reward in preferences.collection().floats)
+        presenter.closeSecret()
+        presenter.buyCrate(SecretCrate.Basic)
+        assertNull(presenter.navigation.selectedSecret)
     }
 }

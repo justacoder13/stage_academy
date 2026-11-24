@@ -8,6 +8,8 @@ import fr.stageacademy.quiz.QuizPreferences
 import fr.stageacademy.quiz.challenge_view.ChallengeMode
 import fr.stageacademy.quiz.challenge_view.ChallengePresenter
 import fr.stageacademy.quiz.collection_view.QuizSecret
+import fr.stageacademy.quiz.collection_view.CollectionProgress
+import fr.stageacademy.quiz.collection_view.SecretCrate
 import fr.stageacademy.quiz.collection_view.SecretDiscovery
 import fr.stageacademy.quiz.collection_view.SecretFloat
 import fr.stageacademy.quiz.leaderboard_view.LeaderboardPresenter
@@ -20,7 +22,7 @@ import fr.stageacademy.quiz.shared_view.QuizSoundPlayer
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-internal enum class QuizPage { Start, Profile, Playing, Paused, Settings, Collection, About, Leaderboard, Challenges }
+internal enum class QuizPage { Start, Profile, Playing, Paused, Settings, Collection, Crates, About, Leaderboard, Challenges }
 
 @OptIn(ExperimentalUuidApi::class)
 private fun newRoundId() = Uuid.random().toString()
@@ -58,8 +60,9 @@ internal class QuizNavigationPresenter(
         private set
     var settings by mutableStateOf(preferences.settings())
         private set
-    var secretFloats by mutableStateOf(preferences.secrets())
+    var collection by mutableStateOf(preferences.collection())
         private set
+    val secretFloats: Map<QuizSecret, SecretFloat> get() = collection.floats
     val foundSecrets: Set<QuizSecret> get() = secretFloats.keys
 
     val suggestedPlayer: String get() = profile.savedName
@@ -95,6 +98,22 @@ internal class QuizNavigationPresenter(
             menuOrigin = navigation.page,
             visitedCollectionDuringPause = navigation.visitedCollectionDuringPause || navigation.page == QuizPage.Paused,
         )
+    }
+
+    fun openCrates() { navigation = navigation.copy(page = QuizPage.Crates) }
+
+    fun buyCrate(crate: SecretCrate) {
+        if (navigation.page != QuizPage.Crates || navigation.selectedSecret != null) return
+        val reward = crate.open(collection) ?: return
+        saveCollection(reward.progress)
+        sounds.play(QuizSound.Secret)
+        navigation = navigation.copy(selectedSecret = reward.secret)
+    }
+
+    private fun saveCollection(value: CollectionProgress) {
+        if (value == collection) return
+        preferences.saveCollection(value)
+        collection = value
     }
 
     fun updateSettings(value: QuizSettings) {
@@ -133,9 +152,7 @@ internal class QuizNavigationPresenter(
     private fun saveDiscoveries(secrets: List<QuizSecret>) {
         val newlyFound = secrets.distinct().filterNot { it in secretFloats }.associateWith { SecretFloat.roll() }
         if (newlyFound.isNotEmpty()) {
-            val updated = secretFloats + newlyFound
-            preferences.saveSecrets(updated)
-            secretFloats = updated
+            saveCollection(collection.copy(floats = secretFloats + newlyFound))
             sounds.play(QuizSound.Secret)
         }
     }
@@ -179,6 +196,7 @@ internal class QuizNavigationPresenter(
         challenge.answer(choice)
         val game = challenge.state ?: return
         if (previousChoice == null && game.choice != null && game.choice == challenge.question?.correctAnswer) {
+            saveCollection(collection.earnPoint())
             unlock(SecretDiscovery.forTimedAnswer(game.mode, challenge.secondsLeft))
         }
     }
@@ -192,6 +210,7 @@ internal class QuizNavigationPresenter(
         val unanswered = round.selectedChoice == null
         round = quiz.submitAnswer(choice)
         if (unanswered && round.selectedChoice != null) {
+            if (round.isCorrect) saveCollection(collection.earnPoint())
             if (!unlock(discovery.answerNormal(round.questionIndex, round.isCorrect))) {
                 sounds.play(if (round.isCorrect) QuizSound.Correct else QuizSound.Incorrect)
             }
@@ -240,6 +259,7 @@ internal class QuizNavigationPresenter(
             QuizPage.Playing -> if (round.question == null) openHome() else pauseNormal()
             QuizPage.Paused -> resumeNormal()
             QuizPage.Settings, QuizPage.Collection -> navigation = navigation.copy(page = navigation.menuOrigin)
+            QuizPage.Crates -> navigation = navigation.copy(page = QuizPage.Collection)
             QuizPage.About, QuizPage.Leaderboard -> navigation = navigation.copy(page = QuizPage.Settings)
         }
     }

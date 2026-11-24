@@ -20,10 +20,9 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import fr.stageacademy.quiz.collection_view.QuizSecret
-import fr.stageacademy.quiz.collection_view.SecretFloat
-import fr.stageacademy.quiz.collection_view.encodeSecretFloats
-import fr.stageacademy.quiz.collection_view.loadSecretFloats
+import fr.stageacademy.quiz.collection_view.CollectionProgress
+import fr.stageacademy.quiz.collection_view.encodeCollection
+import fr.stageacademy.quiz.collection_view.loadCollection
 import fr.stageacademy.quiz.leaderboard_view.DesktopLeaderboardStore
 import fr.stageacademy.quiz.leaderboard_view.LeaderboardStore
 import fr.stageacademy.quiz.leaderboard_view.leaderboardStore
@@ -143,10 +142,11 @@ private class DesktopQuizPreferences(private val preferences: Preferences) : Qui
         soundEnabled = preferences.getBoolean("soundEnabled", true),
     )
 
-    override fun secrets() = loadSecretFloats(
+    override fun collection() = loadCollection(
+        preferences.get("secretCollection", null),
         preferences.get("secretFloats", ""),
         preferences.get("foundSecrets", "").split(',').toSet(),
-        ::saveSecrets,
+        ::saveCollection,
     )
 
     override fun saveSettings(settings: QuizSettings) {
@@ -156,9 +156,8 @@ private class DesktopQuizPreferences(private val preferences: Preferences) : Qui
         preferences.putBoolean("soundEnabled", settings.soundEnabled)
     }
 
-    override fun saveSecrets(secrets: Map<QuizSecret, SecretFloat>) {
-        preferences.put("secretFloats", encodeSecretFloats(secrets))
-        preferences.put("foundSecrets", secrets.keys.joinToString(",") { it.name })
+    override fun saveCollection(progress: CollectionProgress) {
+        preferences.put("secretCollection", encodeCollection(progress))
     }
 
     override fun hasNightCitySignal() = preferences.getBoolean("nightCitySignal", false)

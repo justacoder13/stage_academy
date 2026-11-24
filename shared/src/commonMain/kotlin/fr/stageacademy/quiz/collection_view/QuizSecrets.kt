@@ -2,6 +2,7 @@ package fr.stageacademy.quiz.collection_view
 
 import fr.stageacademy.quiz.shared_view.withQuizClickSound
 import fr.stageacademy.quiz.shared_view.QuizTag
+import fr.stageacademy.quiz.shared_view.MenuButton
 
 import fr.stageacademy.quiz.elapsedMillis
 import org.jetbrains.compose.resources.StringResource
@@ -51,7 +52,13 @@ import fr.stageacademy.quiz.resources.*
 import fr.stageacademy.quiz.ui.theme.QuizForest
 import fr.stageacademy.quiz.ui.theme.QuizLime
 
-internal enum class QuizSecret(val title: StringResource, val description: StringResource, val hint: StringResource, val glyph: String? = null) {
+internal enum class QuizSecret(
+    val title: StringResource,
+    val description: StringResource,
+    val hint: StringResource,
+    val glyph: String? = null,
+    val crateRarity: CrateRarity? = null,
+) {
     Bug(Res.string.welcome_secret_title, Res.string.welcome_secret_message, Res.string.hint_bug),
     Semicolon(Res.string.settings_secret_title, Res.string.settings_secret_message, Res.string.hint_semicolon),
     Calculator(Res.string.secret_calculator, Res.string.story_calculator, Res.string.hint_calculator),
@@ -88,6 +95,12 @@ internal enum class QuizSecret(val title: StringResource, val description: Strin
     Clutch(Res.string.secret_clutch, Res.string.story_clutch, Res.string.hint_clutch),
     NeverFadeAway(Res.string.secret_never_fade_away, Res.string.story_never_fade_away, Res.string.hint_never_fade_away),
     NightCitySignal(Res.string.secret_night_city, Res.string.story_night_city, Res.string.hint_night_city),
+    RubberDuck(Res.string.secret_rubber_duck, Res.string.story_rubber_duck, Res.string.hint_crate, crateRarity = CrateRarity.Common),
+    FloppyDisk(Res.string.secret_floppy_disk, Res.string.story_floppy_disk, Res.string.hint_crate, crateRarity = CrateRarity.Common),
+    NeonJellyfish(Res.string.secret_neon_jellyfish, Res.string.story_neon_jellyfish, Res.string.hint_crate, crateRarity = CrateRarity.Rare),
+    ClockworkOwl(Res.string.secret_clockwork_owl, Res.string.story_clockwork_owl, Res.string.hint_crate, crateRarity = CrateRarity.Rare),
+    GoldenCartridge(Res.string.secret_golden_cartridge, Res.string.story_golden_cartridge, Res.string.hint_crate, crateRarity = CrateRarity.Epic),
+    PocketGalaxy(Res.string.secret_pocket_galaxy, Res.string.story_pocket_galaxy, Res.string.hint_crate, crateRarity = CrateRarity.Epic),
 }
 
 @Composable
@@ -131,6 +144,7 @@ internal fun SecretCollection(
     secretFloats: Map<QuizSecret, SecretFloat>,
     onOpen: (QuizSecret) -> Unit,
     onDiscover: (QuizSecret) -> Unit,
+    onCrates: () -> Unit,
 ) {
     val foundSecrets = secretFloats.keys
     val secrets = QuizSecret.entries
@@ -174,6 +188,7 @@ internal fun SecretCollection(
             }
         }
     }
+    MenuButton(stringResource(Res.string.crate_title), onCrates)
     Row(
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -284,6 +299,9 @@ internal fun SecretEntryDialog(
                         ),
                     )
                     SecretFloatLabel(value, showFullName = true)
+                    secret.crateRarity?.let { rarity ->
+                        Text(stringResource(Res.string.crate_rarity, stringResource(rarity.label)))
+                    }
                 }
                 Text(stringResource(if (found) secret.description else secret.hint))
             }

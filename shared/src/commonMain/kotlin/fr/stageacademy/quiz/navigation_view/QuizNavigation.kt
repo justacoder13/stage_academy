@@ -38,6 +38,7 @@ import fr.stageacademy.quiz.challenge_view.PlayModeMenu
 import fr.stageacademy.quiz.challenge_view.title
 import fr.stageacademy.quiz.collection_view.QuizSecret
 import fr.stageacademy.quiz.collection_view.SecretCollection
+import fr.stageacademy.quiz.collection_view.SecretCratesScreen
 import fr.stageacademy.quiz.collection_view.SecretEntryDialog
 import fr.stageacademy.quiz.menu_view.LeaveQuizDialog
 import fr.stageacademy.quiz.menu_view.HomeTabs
@@ -177,7 +178,9 @@ internal fun QuizNavigation(
                                 secretFloats = presenter.secretFloats,
                                 onOpen = presenter::openSecret,
                                 onDiscover = presenter::discoverSecret,
+                                onCrates = presenter::openCrates,
                             )
+                            QuizPage.Crates -> SecretCratesScreen(presenter.collection, presenter::buyCrate)
                             QuizPage.Playing -> {
                                 if (question == null) {
                                     ResultPanel(state.score, state.questionCount, presenter::discoverSecret)
@@ -236,7 +239,7 @@ private fun NavigationActions(presenter: QuizNavigationPresenter, guestName: Str
             label = stringResource(Res.string.resume_quiz),
             onClick = presenter::resumeNormal,
         )
-        QuizPage.Settings, QuizPage.Collection, QuizPage.About, QuizPage.Leaderboard -> QuizActionBar(
+        QuizPage.Settings, QuizPage.Collection, QuizPage.Crates, QuizPage.About, QuizPage.Leaderboard -> QuizActionBar(
             label = stringResource(Res.string.back),
             onClick = presenter::goBack,
         )

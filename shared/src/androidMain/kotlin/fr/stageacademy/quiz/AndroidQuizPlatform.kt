@@ -7,10 +7,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import fr.stageacademy.quiz.collection_view.QuizSecret
-import fr.stageacademy.quiz.collection_view.SecretFloat
-import fr.stageacademy.quiz.collection_view.encodeSecretFloats
-import fr.stageacademy.quiz.collection_view.loadSecretFloats
+import fr.stageacademy.quiz.collection_view.CollectionProgress
+import fr.stageacademy.quiz.collection_view.encodeCollection
+import fr.stageacademy.quiz.collection_view.loadCollection
 import fr.stageacademy.quiz.leaderboard_view.AndroidLeaderboardStore
 import fr.stageacademy.quiz.leaderboard_view.LeaderboardStore
 import fr.stageacademy.quiz.leaderboard_view.leaderboardStore
@@ -69,10 +68,11 @@ private class AndroidQuizPreferences(private val preferences: SharedPreferences)
         soundEnabled = preferences.getBoolean("soundEnabled", true),
     )
 
-    override fun secrets() = loadSecretFloats(
+    override fun collection() = loadCollection(
+        preferences.getString("secretCollection", null),
         preferences.getString("secretFloats", "").orEmpty(),
         preferences.getStringSet("foundSecrets", emptySet()).orEmpty(),
-        ::saveSecrets,
+        ::saveCollection,
     )
 
     override fun saveSettings(settings: QuizSettings) {
@@ -84,11 +84,8 @@ private class AndroidQuizPreferences(private val preferences: SharedPreferences)
             .apply()
     }
 
-    override fun saveSecrets(secrets: Map<QuizSecret, SecretFloat>) {
-        preferences.edit()
-            .putString("secretFloats", encodeSecretFloats(secrets))
-            .putStringSet("foundSecrets", secrets.keys.map { it.name }.toSet())
-            .apply()
+    override fun saveCollection(progress: CollectionProgress) {
+        preferences.edit().putString("secretCollection", encodeCollection(progress)).apply()
     }
 
     override fun hasNightCitySignal() = preferences.getBoolean("nightCitySignal", false)
