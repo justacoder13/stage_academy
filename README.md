@@ -45,6 +45,20 @@ depuis `backend/`, puis lance `.\gradlew.bat :desktop:run` depuis la
 racine. La version bureau utilise cette adresse par défaut, et revient aux
 scores locaux lorsque le serveur est arrêté.
 
+Pour tester sur un téléphone Android relié en USB, garde FastAPI lancé sur le
+PC et autorise le débogage USB. Avec `adb` dans le PATH, lance ces commandes
+depuis la racine du dépôt.
+
+```powershell
+adb -d reverse tcp:8000 tcp:8000
+.\gradlew.bat :app:assembleDebug -PleaderboardUrl=http://127.0.0.1:8000
+```
+
+Installe l’APK de développement généré sur le téléphone. Cette configuration
+utilise également `http://127.0.0.1:8000/auth/google/callback` comme
+redirection autorisée dans Google Cloud. Si le téléphone a été débranché,
+rebranche-le et rétablis le tunnel avec `adb -d reverse tcp:8000 tcp:8000`.
+
 Configure la connexion Google dans le [backend FastAPI](backend/README.md#7-connexion-google-et-classement)
 et utilise la même adresse HTTPS pour Android et la version bureau. Remplace
 l’adresse d’exemple par celle du backend.
