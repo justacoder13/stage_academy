@@ -101,7 +101,7 @@ internal actual fun rememberQuizPreferences(): QuizPreferences =
 
 @Composable
 internal actual fun rememberLeaderboardStore(): LeaderboardStore =
-    remember { leaderboardStore(DesktopLeaderboardStore(dataDirectory)) }
+    remember { leaderboardStore(DesktopLeaderboardStore(dataDirectory), fallbackUrl = "http://127.0.0.1:8000") }
 
 @Composable
 internal actual fun rememberProfile(scope: CoroutineScope): ProfilePanel = remember(scope) {

@@ -3,7 +3,8 @@ package fr.stageacademy.quiz.leaderboard_view
 internal data class PlayerRanking(val name: String, val points: Long)
 internal data class RankedRound(val id: String, val player: String, val points: Int, val accountId: String? = null)
 internal data class GoogleLogin(val id: String, val secret: String, val authorizationUrl: String)
-internal enum class GoogleLoginStatus { Pending, Connected, Failed, Conflict, Expired }
+internal enum class GoogleLoginStatus { Pending, Connected, Failed, Conflict, Expired, NotConfigured }
+internal class GoogleConfigurationException : Exception()
 
 internal enum class LeaderboardSource { Local, Shared, Offline }
 
@@ -17,6 +18,7 @@ internal interface LeaderboardStore {
     fun pollGoogleLogin(login: GoogleLogin): GoogleLoginStatus = GoogleLoginStatus.Failed
     fun signOut() = Unit
     fun rankings(): List<PlayerRanking>
+    fun localRankings(): List<PlayerRanking> = rankings()
     fun record(id: String, player: String, points: Int): List<PlayerRanking>
     fun standings() = LeaderboardStandings(rankings(), LeaderboardSource.Local)
 }

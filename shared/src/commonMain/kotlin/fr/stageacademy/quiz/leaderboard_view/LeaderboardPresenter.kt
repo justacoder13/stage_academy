@@ -9,7 +9,9 @@ import fr.stageacademy.quiz.platformIo
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 internal class LeaderboardPresenter(private val store: LeaderboardStore, private val scope: CoroutineScope) {
     private var refreshAfterLoad = false
@@ -25,6 +27,8 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
     var source by mutableStateOf(LeaderboardSource.Local)
         private set
     var rankings by mutableStateOf(emptyList<PlayerRanking>())
+        private set
+    var deviceRankings by mutableStateOf(emptyList<PlayerRanking>())
         private set
     var loading by mutableStateOf(false)
         private set
@@ -52,6 +56,8 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
                 } else {
                     googleStatus = result
                 }
+            } catch (_: GoogleConfigurationException) {
+                googleStatus = GoogleLoginStatus.NotConfigured
             } catch (_: StorageException) {
                 googleStatus = GoogleLoginStatus.Failed
             } catch (_: IllegalArgumentException) {
@@ -59,6 +65,7 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
             } catch (_: UnsupportedOperationException) {
                 googleStatus = GoogleLoginStatus.Failed
             } finally {
+                if (!currentCoroutineContext().isActive) store.signOut()
                 googleBusy = false
             }
         }
@@ -82,8 +89,13 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
         failed = false
         scope.launch {
             try {
-                val standings = withContext(platformIo) { store.standings() }
+                val (standings, device) = withContext(platformIo) {
+                    val standings = store.standings()
+                    val device = if (standings.source == LeaderboardSource.Shared) store.localRankings() else standings.players
+                    standings to device
+                }
                 rankings = standings.players
+                deviceRankings = device
                 source = standings.source
             } catch (_: StorageException) {
                 failed = true
@@ -105,6 +117,7 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
             var recorded = false
             try {
                 val localRankings = withContext(platformIo) { store.record(id, name, points) }
+                deviceRankings = localRankings
                 if (source != LeaderboardSource.Shared) rankings = localRankings
                 recorded = true
                 onRecorded()

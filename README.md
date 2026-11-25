@@ -38,45 +38,38 @@ Sous Windows, si le projet est dans OneDrive, Gradle écrit les fichiers génér
 dans `%LOCALAPPDATA%\StageAcademy\build\<identifiant-du-projet>\<module>`.
 Dans le dossier du module `app`, l’APK se trouve sous `outputs\apk\debug`.
 
-## Partager le classement
+## Connexion Google et classement partagé
 
-Le module `server` fait tourner un serveur HTTP et conserve les parties dans
-SQLite. Démarrer le serveur sur un ordinateur du réseau avec Node.js 24 et
-indiquer l’adresse de cet ordinateur lors de la compilation des deux versions.
+Pour un essai sur le même ordinateur, lance FastAPI sur `127.0.0.1:8000`
+depuis `backend/`, puis lance `.\gradlew.bat :desktop:run` depuis la
+racine. La version bureau utilise cette adresse par défaut, et revient aux
+scores locaux lorsque le serveur est arrêté.
 
-```powershell
-$env:LEADERBOARD_HOST = "0.0.0.0"
-node server/leaderboard.mjs
-```
-
-Dans un autre terminal, remplacer l’adresse d’exemple par l’adresse IP du
-serveur, puis installer l’APK et lancer la version bureau générés par cette
-compilation.
+Configure la connexion Google dans le [backend FastAPI](backend/README.md#7-connexion-google-et-classement)
+et utilise la même adresse HTTPS pour Android et la version bureau. Remplace
+l’adresse d’exemple par celle du backend.
 
 ```powershell
-.\gradlew.bat :app:assembleDebug :desktop:installDist -PleaderboardUrl=http://192.168.1.20:8080
+.\gradlew.bat :app:assembleDebug :desktop:installDist -PleaderboardUrl=https://quiz.example.com
+.\gradlew.bat :desktop:run -PleaderboardUrl=https://quiz.example.com
 ```
 
-Pour lancer la version bureau depuis Gradle, conserver la même adresse.
+Dans **Paramètres → Classement**, clique sur **Se connecter avec Google**.
+Une fois la connexion confirmée dans le navigateur, reviens dans le jeu.
+Termine une partie normale connecté pour ajouter un point par bonne réponse
+au classement. Sur le deuxième appareil, utilise le même compte Google puis
+actualise le classement pour retrouver ce total.
 
-```powershell
-.\gradlew.bat :desktop:run -PleaderboardUrl=http://192.168.1.20:8080
-```
+Les parties terminées pendant une session connectée sont conservées sur
+l’appareil si le réseau coupe. À la prochaine synchronisation avec le même
+compte, chaque partie est comptée une seule fois. Le jeton reste en mémoire
+pendant la session et expire après 30 minutes par défaut. Au redémarrage ou
+après expiration, reconnecte-toi pour synchroniser tes parties.
 
-Pour une utilisation depuis plusieurs réseaux, héberger le serveur à une
-adresse HTTPS accessible aux appareils autorisés et utiliser cette adresse
-pour `leaderboardUrl`. Le serveur peut rester lié à `127.0.0.1` derrière
-un proxy HTTPS. Il traite les appareils autorisés à l’atteindre comme des
-clients de confiance. Pour conserver les scores après un redémarrage ou un
-déploiement, placer `LEADERBOARD_DATABASE` sur un stockage persistant.
-
-Les appareils envoient les noms de joueur, les points et les identifiants
-des parties. Le même nom, indépendamment des majuscules, cumule les points
-sur les différents appareils. Les parties déjà enregistrées localement
-sont incluses à la première synchronisation. Une partie jouée hors ligne
-sera synchronisée à la prochaine ouverture ou actualisation du classement
-avec le serveur disponible. Une compilation sans `leaderboardUrl` utilise
-le classement local.
+Les parties invitées et l’ancien historique restent accessibles dans
+**Voir les scores de cet appareil**. Sur Android, une compilation sans
+`leaderboardUrl` utilise le classement local. Les points dépensables dans la collection sont
+gérés par le jeu sur chaque appareil.
 
 ## Repérer les fichiers
 

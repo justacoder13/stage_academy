@@ -1,6 +1,8 @@
 import json
 import re
+from base64 import urlsafe_b64encode
 from hashlib import sha256
+from hmac import digest
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
@@ -21,7 +23,10 @@ email_validator = TypeAdapter(Email)
 
 
 def configured(settings: Settings) -> bool:
-    uri = urlsplit(settings.google_redirect_uri)
+    try:
+        uri = urlsplit(settings.google_redirect_uri)
+    except ValueError:
+        return False
     secure = uri.scheme == "https" or (uri.scheme == "http" and uri.hostname in {"localhost", "127.0.0.1"})
     return bool(settings.google_client_id and settings.google_client_secret.get_secret_value()
                 and secure and uri.hostname and not uri.query and not uri.fragment
@@ -36,8 +41,19 @@ def authorization_url(settings: Settings, state: str) -> str:
         "scope": "openid email",
         "state": state,
         "nonce": state,
+        "code_challenge": base64url(sha256(code_verifier(settings, state).encode()).digest()),
+        "code_challenge_method": "S256",
         "prompt": "select_account",
     })
+
+
+def base64url(value: bytes) -> str:
+    return urlsafe_b64encode(value).decode().rstrip("=")
+
+
+def code_verifier(settings: Settings, state: str) -> str:
+    key = settings.jwt_secret_key.get_secret_value().encode()
+    return base64url(digest(key, f"google-pkce:{state}".encode(), "sha256"))
 
 
 def exchange_code(settings: Settings, code: str, nonce: str) -> tuple[str, str]:
@@ -47,6 +63,7 @@ def exchange_code(settings: Settings, code: str, nonce: str) -> tuple[str, str]:
         "client_secret": settings.google_client_secret.get_secret_value(),
         "redirect_uri": settings.google_redirect_uri,
         "grant_type": "authorization_code",
+        "code_verifier": code_verifier(settings, nonce),
     }).encode()
     request = Request(GOOGLE_TOKEN, data=form, headers={"Content-Type": "application/x-www-form-urlencoded"})
     with urlopen(request, timeout=8) as response:

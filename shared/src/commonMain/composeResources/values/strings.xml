@@ -55,6 +55,11 @@
     <string name="google_conflict">Cette adresse est déjà associée à un compte avec mot de passe.</string>
     <string name="google_expired">La demande a expiré. Relance la connexion Google.</string>
     <string name="google_failed">Connexion Google impossible. Vérifie le serveur et réessaie.</string>
+    <string name="google_not_configured">La connexion Google reste à configurer sur le serveur.</string>
+    <string name="google_https_required">La connexion Google nécessite une adresse HTTPS pour le serveur partagé.</string>
+    <string name="google_server_required">Pour te connecter, cette version du jeu doit être reliée au serveur du classement.</string>
+    <string name="leaderboard_show_shared">Voir le classement partagé</string>
+    <string name="leaderboard_show_device">Voir les scores de cet appareil</string>
     <string name="leaderboard_offline">Serveur indisponible. Seuls les scores de cet appareil sont affichés pour le moment.</string>
     <string name="leaderboard_refresh">Actualiser le classement</string>
     <string name="leaderboard_choose_player">Qui joue ?</string>

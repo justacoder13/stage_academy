@@ -29,7 +29,8 @@ import fr.stageacademy.quiz.shared_view.MenuCard
 
 @Composable
 internal fun LeaderboardScreen(presenter: LeaderboardPresenter) {
-    val players = presenter.rankings
+    var showDevice by rememberSaveable { mutableStateOf(false) }
+    val players = if (showDevice) presenter.deviceRankings else presenter.rankings
     val loading = presenter.loading
     val failed = presenter.failed
     val shared = presenter.shared
@@ -58,9 +59,13 @@ internal fun LeaderboardScreen(presenter: LeaderboardPresenter) {
                 GoogleLoginStatus.Conflict -> Res.string.google_conflict
                 GoogleLoginStatus.Expired -> Res.string.google_expired
                 GoogleLoginStatus.Failed -> Res.string.google_failed
+                GoogleLoginStatus.NotConfigured -> Res.string.google_not_configured
                 else -> null
             }
             if (error != null) Text(stringResource(error))
+        } else {
+            Button(onClick = {}, enabled = false) { Text(stringResource(Res.string.google_login)) }
+            Text(stringResource(if (shared) Res.string.google_https_required else Res.string.google_server_required))
         }
         when {
             loading -> Text(stringResource(Res.string.leaderboard_loading))
@@ -73,6 +78,10 @@ internal fun LeaderboardScreen(presenter: LeaderboardPresenter) {
         }
         if (shared && !loading && !failed) {
             TextButton(onClick = presenter::load) { Text(stringResource(Res.string.leaderboard_refresh)) }
+            if (presenter.source == LeaderboardSource.Shared) {
+                val toggleLabel = if (showDevice) Res.string.leaderboard_show_shared else Res.string.leaderboard_show_device
+                TextButton(onClick = { showDevice = !showDevice }) { Text(stringResource(toggleLabel)) }
+            }
         }
     }
     if (!loading && !failed) {

@@ -151,3 +151,46 @@ uv run --locked --extra postgres uvicorn app.main:app --host 127.0.0.1 --port 80
 
 Alembic crée les tables dans PostgreSQL. Pour retrouver des comptes existants,
 il faut aussi importer les lignes de la base SQLite.
+
+## 7. Connexion Google et classement
+
+1. Dans Google Cloud Console, configure l’écran de consentement OAuth. Si
+   l’application est en mode test, ajoute les comptes Google qui vont tester.
+2. Crée un client OAuth de type **Application Web** et ajoute l’URI de
+   redirection exacte. Pour plusieurs appareils, utilise par exemple
+   `https://quiz.example.com/auth/google/callback` avec le vrai domaine du
+   backend. Pour un test depuis le bureau uniquement, tu peux autoriser
+   `http://127.0.0.1:8000/auth/google/callback`.
+3. Dans `.env`, configure ces trois variables. La clé secrète reste sur le
+   backend. [Configuration OAuth pour un serveur web](https://developers.google.com/identity/protocols/oauth2/web-server)
+
+   ```dotenv
+   GOOGLE_CLIENT_ID=identifiant-fourni-par-google
+   GOOGLE_CLIENT_SECRET=secret-fourni-par-google
+   GOOGLE_REDIRECT_URI=https://quiz.example.com/auth/google/callback
+   ```
+
+4. Applique la migration et relance l’API. Pour le partage entre appareils,
+   expose-la derrière un proxy HTTPS et conserve la base sur un stockage
+   persistant.
+
+   ```powershell
+   uv run --locked alembic upgrade head
+   uv run --locked uvicorn app.main:app --host 127.0.0.1 --port 8000 --no-access-log
+   ```
+
+Le navigateur ouvre la page Google. Le serveur valide le code et le jeton
+Google puis remet un JWT à l’application par une demande à usage unique.
+L’accès Google demande seulement l’identité et l’adresse e-mail. Si cette
+adresse est déjà utilisée pour un compte avec mot de passe, conserve cette
+méthode de connexion pour ce compte.
+
+L’API expose les 100 premiers du classement avec `GET /leaderboard`. Seuls
+les pseudonymes et les scores sont publics. `POST /leaderboard/rounds`
+demande un JWT et cumule les scores transmis par le quiz sur le compte
+connecté. Les identifiants de partie empêchent les doublons lors des
+reprises réseau. Le serveur reçoit le résultat du quiz sans rejouer les
+réponses. Ce classement convient à un usage entre joueurs de confiance.
+
+Lors du déploiement, configure les journaux du proxy pour omettre la chaîne
+de requête sur le callback Google. Elle contient le code d’autorisation.

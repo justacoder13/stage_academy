@@ -13,8 +13,10 @@ internal fun decodeRounds(games: JSONObject): Sequence<RankedRound> =
         RankedRound(id, round.optString("player"), round.optInt("points"), round.optString("accountId").ifBlank { null })
     }
 
-internal fun leaderboardStore(local: LocalLeaderboardStore): LeaderboardStore =
-    if (LeaderboardUrl.isBlank()) local else SharedLeaderboardStore(local, LeaderboardUrl)
+internal fun leaderboardStore(local: LocalLeaderboardStore, fallbackUrl: String = ""): LeaderboardStore {
+    val url = LeaderboardUrl.ifBlank { fallbackUrl }
+    return if (url.isBlank()) local else SharedLeaderboardStore(local, url)
+}
 
 internal class SharedLeaderboardStore(
     private val local: LocalLeaderboardStore,
@@ -30,7 +32,7 @@ internal class SharedLeaderboardStore(
     override fun signOut() { session = null }
 
     override fun startGoogleLogin(): GoogleLogin = parse {
-        val result = JSONObject(request("/auth/google/start", JSONObject()))
+        val result = JSONObject(request("/auth/google/start", JSONObject(), googleStart = true))
         val url = result.getString("authorization_url")
         val uri = URI(url)
         if (uri.scheme != "https" || uri.host != "accounts.google.com") throw IOException("Invalid Google URL")
@@ -56,6 +58,7 @@ internal class SharedLeaderboardStore(
     }
 
     override fun rankings() = standings().players
+    override fun localRankings() = local.rankings()
 
     override fun record(id: String, player: String, points: Int): List<PlayerRanking> {
         val current = account
@@ -98,7 +101,9 @@ internal class SharedLeaderboardStore(
         throw IOException("Invalid server URL", error)
     }
 
-    private fun request(path: String, body: JSONObject? = null, token: String? = null): String {
+    private fun request(
+        path: String, body: JSONObject? = null, token: String? = null, googleStart: Boolean = false,
+    ): String {
         val connection = (URI("$baseUrl$path").toURL().openConnection() as HttpURLConnection).apply {
             requestMethod = if (body == null) "GET" else "POST"
             connectTimeout = 4_000
@@ -114,8 +119,10 @@ internal class SharedLeaderboardStore(
                 connection.setFixedLengthStreamingMode(bytes.size)
                 connection.outputStream.use { it.write(bytes) }
             }
-            if (connection.responseCode == 401 && token != null && session?.token == token) signOut()
-            if (connection.responseCode != 200) throw IOException("Server HTTP ${connection.responseCode}")
+            val status = connection.responseCode
+            if (status == 503 && googleStart) throw GoogleConfigurationException()
+            if (status == 401 && token != null && session?.token == token) signOut()
+            if (status != 200) throw IOException("Server HTTP $status")
             return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
         } finally {
             connection.disconnect()
