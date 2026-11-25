@@ -17,3 +17,11 @@ class TokenResponse(BaseModel):
     expires_in: int
     user_id: UUID
     username: str
+
+
+class LoginResponse(TokenResponse):
+    refresh_token: str
+
+
+class SessionRequest(RequestModel):
+    refresh_token: SecretStr = Field(min_length=43, max_length=43)

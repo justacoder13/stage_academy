@@ -72,6 +72,7 @@ kotlin {
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
         implementation("com.github.sarxos:webcam-capture:0.3.12")
         implementation("org.json:json:20250517")
+        implementation("net.java.dev.jna:jna-platform:5.17.0")
     }
 
     sourceSets.commonTest.dependencies {

@@ -1,18 +1,22 @@
 from collections import Counter, deque
 from contextlib import contextmanager
+from hashlib import sha256
+from secrets import token_urlsafe
 from threading import BoundedSemaphore, Lock
-from time import monotonic
+from time import monotonic, time
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
+from sqlalchemy import delete
 
 from app.core.security import create_access_token
 from app.dependencies import AppSettings, DatabaseSession, unauthorized
-from app.models import User
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.models import LoginSession, User
+from app.schemas.auth import LoginRequest, LoginResponse, SessionRequest, TokenResponse
 from app.schemas.user import UserRegistration, UserResponse
 from app.services.users import authenticate_user, register_user
 
 router = APIRouter(prefix="/auth", tags=["Authentification"])
+SESSION_SECONDS = 30 * 24 * 60 * 60
 
 
 class AuthAttempts:
@@ -49,14 +53,28 @@ def register(data: UserRegistration, session: DatabaseSession, request: Request)
         return register_user(session, data)
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=LoginResponse)
 def login(
     data: LoginRequest, response: Response, session: DatabaseSession, settings: AppSettings, request: Request,
-) -> TokenResponse:
+) -> LoginResponse:
     with request.app.state.auth_attempts.allow(f"login:{data.username}"):
         user = authenticate_user(session, data)
     if user is None:
         raise unauthorized("Identifiant ou mot de passe incorrect.")
+
+    refresh_token = token_urlsafe(32)
+    now = int(time())
+    session.execute(delete(LoginSession).where(LoginSession.expires_at <= now))
+    session.add(LoginSession(token_hash=token_hash(refresh_token), user_id=user.id, expires_at=now + SESSION_SECONDS))
+    session.commit()
+    return LoginResponse(**issue_access_token(user, settings, response).model_dump(), refresh_token=refresh_token)
+
+
+def token_hash(token: str) -> str:
+    return sha256(token.encode()).hexdigest()
+
+
+def issue_access_token(user: User, settings: AppSettings, response: Response) -> TokenResponse:
     response.headers["Cache-Control"] = "no-store"
     return TokenResponse(
         access_token=create_access_token(user.id, settings),
@@ -64,3 +82,23 @@ def login(
         user_id=user.id,
         username=user.username,
     )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(data: SessionRequest, session: DatabaseSession, settings: AppSettings, response: Response) -> TokenResponse:
+    remembered = session.get(LoginSession, token_hash(data.refresh_token.get_secret_value()))
+    if remembered is None or remembered.expires_at <= int(time()):
+        raise unauthorized()
+    user = session.get(User, remembered.user_id)
+    if user is None:
+        raise unauthorized()
+    return issue_access_token(user, settings, response)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(data: SessionRequest, session: DatabaseSession) -> Response:
+    session.execute(delete(LoginSession).where(
+        LoginSession.token_hash == token_hash(data.refresh_token.get_secret_value())
+    ))
+    session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
