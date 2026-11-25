@@ -22,7 +22,6 @@ class UserProfile(RequestModel):
 
 class UserRegistration(UserProfile):
     password: SecretStr = Field(min_length=12, max_length=128)
-    registration_code: SecretStr | None = Field(default=None, max_length=128)
 
 
 class UserPatch(RequestModel):

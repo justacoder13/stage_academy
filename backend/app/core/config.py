@@ -12,7 +12,6 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./local.db"
     jwt_secret_key: SecretStr = Field(min_length=32)
     jwt_access_token_minutes: int = Field(default=30, ge=1, le=1440)
-    registration_code: SecretStr | None = Field(default=None, min_length=16, max_length=128)
     hosted_deployment: bool = False
 
     model_config = SettingsConfigDict(
@@ -33,6 +32,4 @@ class Settings(BaseSettings):
                 raise ValueError("L’adresse PostgreSQL est invalide.") from None
             if url.query.get("sslmode") not in {"require", "verify-ca", "verify-full"}:
                 raise ValueError("La connexion PostgreSQL doit utiliser TLS.")
-            if self.registration_code is None:
-                raise ValueError("Le déploiement nécessite un code d'inscription.")
         return self

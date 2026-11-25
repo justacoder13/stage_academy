@@ -33,14 +33,14 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
         private set
 
     fun authenticate(
-        username: String, password: String, email: String?, invitation: String?, onSuccess: (AccountResult) -> Unit,
+        username: String, password: String, email: String?, onSuccess: (AccountResult) -> Unit,
     ) {
         if (!accountAvailable || accountBusy) return
         accountBusy = true
         accountResult = null
         scope.launch {
             try {
-                val result = withContext(platformIo) { store.authenticate(username, password, email, invitation) }
+                val result = withContext(platformIo) { store.authenticate(username, password, email) }
                 accountResult = result
                 if (result == AccountResult.Connected) {
                     accountName = store.accountName

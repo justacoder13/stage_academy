@@ -193,12 +193,13 @@ activité. La première connexion peut alors prendre environ une minute.
    fournis par Neon, par exemple `sslmode=require`.
 2. Dans Render, crée un Blueprint à partir de la branche qui contient
    `render.yaml` et renseigne l’adresse de Neon dans `DATABASE_URL`.
-   Render génère `JWT_SECRET_KEY` et `REGISTRATION_CODE`. Donne ce code
-   uniquement aux personnes autorisées à créer un compte.
+   Render génère `JWT_SECRET_KEY`. Les joueurs peuvent créer un compte
+   depuis l’application avec un nom de joueur, une adresse e-mail et
+   un mot de passe.
 3. Vérifie que `/health` sur l’URL Render répond `{"status":"ok"}`. Si
    ton ancien compte a été créé avec Google, active son mot de passe sur
    le PC avec la commande de la section précédente.
-4. Avant d’autoriser des inscriptions sur Render, lance les commandes
+4. Si tu migres un classement existant, lance les commandes
    suivantes depuis `backend/` sur le PC. Colle l’URL de Neon lorsque le
    terminal la demande.
 

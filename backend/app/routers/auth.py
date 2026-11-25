@@ -1,6 +1,5 @@
 from collections import Counter, deque
 from contextlib import contextmanager
-from hmac import compare_digest
 from threading import BoundedSemaphore, Lock
 from time import monotonic
 
@@ -45,12 +44,7 @@ class AuthAttempts:
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(data: UserRegistration, session: DatabaseSession, settings: AppSettings, request: Request) -> User:
-    required_code = settings.registration_code
-    if required_code is not None:
-        submitted_code = data.registration_code.get_secret_value() if data.registration_code else ""
-        if not compare_digest(submitted_code.encode(), required_code.get_secret_value().encode()):
-            raise HTTPException(403, "Code d'invitation absent ou incorrect.")
+def register(data: UserRegistration, session: DatabaseSession, request: Request) -> User:
     with request.app.state.auth_attempts.allow("register"):
         return register_user(session, data)
 

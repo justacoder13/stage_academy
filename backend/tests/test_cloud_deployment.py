@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from pydantic import SecretStr, ValidationError
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,22 +17,20 @@ from app.models import ScoreRound, User
 from test_api import register
 
 
-def test_hosted_requires_postgres_and_registration_code():
+def test_hosted_requires_persistent_postgres_with_tls():
     base = {"_env_file": None, "jwt_secret_key": "a" * 40, "hosted_deployment": True}
     with pytest.raises(ValidationError, match="PostgreSQL"):
-        Settings(**base, registration_code="a" * 32)
-    dsn = "postgresql+psycopg://test:example@localhost/quiz?sslmode=require"
-    with pytest.raises(ValidationError, match="code d'inscription"):
+        Settings(**base)
+    dsn = "postgresql+psycopg://test:example@localhost/quiz"
+    with pytest.raises(ValidationError, match="TLS"):
         Settings(**base, database_url=dsn)
+    assert Settings(**base, database_url=dsn + "?sslmode=require").hosted_deployment
 
 
-def test_invitation_required_when_configured(client):
-    client.app.state.settings.registration_code = SecretStr("my-private-invitation")
-    assert register(client).status_code == 403
-    assert register(client, registration_code="incorrect").status_code == 403
-    response = register(client, registration_code="my-private-invitation")
+def test_registration_without_invitation_and_health(client):
+    response = register(client)
     assert response.status_code == 201
-    assert "my-private-invitation" not in response.text
+    assert client.get("/leaderboard").status_code == 401
     assert client.get("/health").json() == {"status": "ok"}
 
 

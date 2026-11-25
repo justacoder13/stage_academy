@@ -15,7 +15,5 @@ services:
         sync: false
       - key: JWT_SECRET_KEY
         generateValue: true
-      - key: REGISTRATION_CODE
-        generateValue: true
       - key: HOSTED_DEPLOYMENT
         value: "true"

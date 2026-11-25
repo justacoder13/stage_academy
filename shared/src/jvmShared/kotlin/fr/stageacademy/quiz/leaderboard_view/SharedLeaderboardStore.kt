@@ -33,12 +33,11 @@ internal class SharedLeaderboardStore(
 
     override fun signOut() { session = null }
 
-    override fun authenticate(username: String, password: String, email: String?, invitation: String?): AccountResult {
+    override fun authenticate(username: String, password: String, email: String?): AccountResult {
         if (!accountAvailable) return AccountResult.Unavailable
         val body = JSONObject().put("username", username).put("password", password)
         return try {
             if (email != null) {
-                invitation?.let { body.put("registration_code", it) }
                 request("/auth/register", body.put("email", email))
                 AccountResult.Created
             } else {
@@ -54,7 +53,6 @@ internal class SharedLeaderboardStore(
         } catch (error: HttpError) {
             when (error.status) {
                 401 -> AccountResult.InvalidCredentials
-                403 -> AccountResult.InvalidInvitation
                 409 -> AccountResult.Conflict
                 422 -> AccountResult.InvalidFields
                 429 -> AccountResult.RateLimited

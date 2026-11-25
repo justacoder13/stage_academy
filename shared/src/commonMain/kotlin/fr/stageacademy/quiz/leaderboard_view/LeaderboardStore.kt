@@ -3,7 +3,7 @@ package fr.stageacademy.quiz.leaderboard_view
 internal data class PlayerRanking(val name: String, val points: Long)
 internal data class RankedRound(val id: String, val player: String, val points: Int, val accountId: String? = null)
 internal enum class AccountResult {
-    Connected, Created, InvalidCredentials, InvalidFields, InvalidInvitation, Conflict, RateLimited, Unavailable,
+    Connected, Created, InvalidCredentials, InvalidFields, Conflict, RateLimited, Unavailable,
 }
 
 internal enum class LeaderboardSource { Local, Shared, Offline }
@@ -14,7 +14,7 @@ internal interface LeaderboardStore {
     val shared: Boolean get() = false
     val accountAvailable: Boolean get() = false
     val accountName: String? get() = null
-    fun authenticate(username: String, password: String, email: String?, invitation: String?): AccountResult =
+    fun authenticate(username: String, password: String, email: String?): AccountResult =
         AccountResult.Unavailable
     fun signOut() = Unit
     fun rankings(): List<PlayerRanking>

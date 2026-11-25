@@ -109,14 +109,12 @@ private fun LeaderboardAccountDialog(create: Boolean, presenter: LeaderboardPres
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var invitation by remember { mutableStateOf("") }
     val valid = username.trim().matches(Regex("[a-zA-Z0-9_.-]{3,32}")) &&
         password.isNotEmpty() && password.length <= 128 && (!create || (password.length >= 12 && email.isNotBlank()))
     val action = if (create) Res.string.leaderboard_account_create else Res.string.leaderboard_account_login
     val error = when (presenter.accountResult) {
         AccountResult.InvalidCredentials -> Res.string.leaderboard_account_invalid
         AccountResult.InvalidFields -> Res.string.leaderboard_account_fields
-        AccountResult.InvalidInvitation -> Res.string.leaderboard_account_invalid_invitation
         AccountResult.Conflict -> Res.string.leaderboard_account_conflict
         AccountResult.RateLimited -> Res.string.leaderboard_account_rate_limit
         AccountResult.Unavailable -> Res.string.leaderboard_account_unavailable
@@ -143,14 +141,6 @@ private fun LeaderboardAccountDialog(create: Boolean, presenter: LeaderboardPres
                         singleLine = true,
                         enabled = !presenter.accountBusy,
                     )
-                    OutlinedTextField(
-                        value = invitation,
-                        onValueChange = { invitation = it },
-                        label = { Text(stringResource(Res.string.leaderboard_account_invitation)) },
-                        visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true,
-                        enabled = !presenter.accountBusy,
-                    )
                 }
                 OutlinedTextField(
                     value = password,
@@ -170,8 +160,7 @@ private fun LeaderboardAccountDialog(create: Boolean, presenter: LeaderboardPres
         },
         confirmButton = {
             Button(enabled = valid && !presenter.accountBusy, onClick = {
-                val code = invitation.trim().takeIf { create && it.isNotEmpty() }
-                presenter.authenticate(username.trim(), password, email.trim().takeIf { create }, code) {
+                presenter.authenticate(username.trim(), password, email.trim().takeIf { create }) {
                     password = ""
                     onClose()
                 }
