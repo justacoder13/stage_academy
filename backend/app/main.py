@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import Settings
 from app.database import build_engine
 from app.dependencies import DatabaseSession
-from app.routers import auth, leaderboard, users
+from app.routers import auth, collection, leaderboard, users
 from app.services.users import UserConflict
 
 
@@ -31,6 +31,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     api.include_router(auth.router)
     api.include_router(users.router)
     api.include_router(leaderboard.router)
+    api.include_router(collection.router)
 
     @api.get("/health", include_in_schema=False)
     def health(session: DatabaseSession) -> JSONResponse:

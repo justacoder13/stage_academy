@@ -160,6 +160,18 @@ private class DesktopQuizPreferences(private val preferences: Preferences) : Qui
         preferences.put("secretCollection", encodeCollection(progress))
     }
 
+    override fun loadAccountCollection(id: String) = preferences.get("accountCollection.$id", null)
+
+    override fun saveAccountCollection(id: String, value: String) {
+        preferences.put("accountCollection.$id", value)
+    }
+
+    override fun collectionImportOwner() = preferences.get("collectionImportOwner", null)
+
+    override fun saveCollectionImportOwner(id: String) {
+        preferences.put("collectionImportOwner", id)
+    }
+
     override fun hasNightCitySignal() = preferences.getBoolean("nightCitySignal", false)
 
     override fun saveNightCitySignal() {

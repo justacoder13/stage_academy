@@ -8,7 +8,7 @@ import fr.stageacademy.quiz.QuizPreferences
 import fr.stageacademy.quiz.challenge_view.ChallengeMode
 import fr.stageacademy.quiz.challenge_view.ChallengePresenter
 import fr.stageacademy.quiz.collection_view.QuizSecret
-import fr.stageacademy.quiz.collection_view.CollectionProgress
+import fr.stageacademy.quiz.collection_view.CollectionPresenter
 import fr.stageacademy.quiz.collection_view.SecretCrate
 import fr.stageacademy.quiz.collection_view.SecretDiscovery
 import fr.stageacademy.quiz.collection_view.SecretFloat
@@ -60,8 +60,8 @@ internal class QuizNavigationPresenter(
         private set
     var settings by mutableStateOf(preferences.settings())
         private set
-    var collection by mutableStateOf(preferences.collection())
-        private set
+    val collections = CollectionPresenter(preferences, leaderboard.store, leaderboard.scope)
+    val collection get() = collections.progress
     val secretFloats: Map<QuizSecret, SecretFloat> get() = collection.floats
     val foundSecrets: Set<QuizSecret> get() = secretFloats.keys
 
@@ -104,16 +104,12 @@ internal class QuizNavigationPresenter(
 
     fun buyCrate(crate: SecretCrate) {
         if (navigation.page != QuizPage.Crates || navigation.selectedSecret != null) return
-        val reward = crate.open(collection) ?: return
-        saveCollection(reward.progress)
-        sounds.play(QuizSound.Secret)
-        navigation = navigation.copy(selectedSecret = reward.secret)
-    }
-
-    private fun saveCollection(value: CollectionProgress) {
-        if (value == collection) return
-        preferences.saveCollection(value)
-        collection = value
+        collections.buy(crate) { secret ->
+            sounds.play(QuizSound.Secret)
+            if (navigation.page == QuizPage.Crates && navigation.selectedSecret == null) {
+                navigation = navigation.copy(selectedSecret = secret)
+            }
+        }
     }
 
     fun updateSettings(value: QuizSettings) {
@@ -152,7 +148,7 @@ internal class QuizNavigationPresenter(
     private fun saveDiscoveries(secrets: List<QuizSecret>) {
         val newlyFound = secrets.distinct().filterNot { it in secretFloats }.associateWith { SecretFloat.roll() }
         if (newlyFound.isNotEmpty()) {
-            saveCollection(collection.copy(floats = secretFloats + newlyFound))
+            collections.discover(newlyFound)
             sounds.play(QuizSound.Secret)
         }
     }
@@ -196,7 +192,7 @@ internal class QuizNavigationPresenter(
         challenge.answer(choice)
         val game = challenge.state ?: return
         if (previousChoice == null && game.choice != null && game.choice == challenge.question?.correctAnswer) {
-            saveCollection(collection.earnPoint())
+            collections.earnPoint()
             unlock(SecretDiscovery.forTimedAnswer(game.mode, challenge.secondsLeft))
         }
     }
@@ -210,7 +206,7 @@ internal class QuizNavigationPresenter(
         val unanswered = round.selectedChoice == null
         round = quiz.submitAnswer(choice)
         if (unanswered && round.selectedChoice != null) {
-            if (round.isCorrect) saveCollection(collection.earnPoint())
+            if (round.isCorrect) collections.earnPoint()
             if (!unlock(discovery.answerNormal(round.questionIndex, round.isCorrect))) {
                 sounds.play(if (round.isCorrect) QuizSound.Correct else QuizSound.Incorrect)
             }

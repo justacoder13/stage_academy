@@ -9,7 +9,7 @@ import fr.stageacademy.quiz.shared_view.MenuCard
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-internal fun SecretCratesScreen(progress: CollectionProgress, onOpen: (SecretCrate) -> Unit) {
+internal fun SecretCratesScreen(progress: CollectionProgress, onOpen: (SecretCrate) -> Unit, purchaseEnabled: Boolean) {
     MenuCard(title = stringResource(Res.string.crate_title)) {
         Text(
             stringResource(Res.string.crate_balance, progress.points),
@@ -34,7 +34,7 @@ internal fun SecretCratesScreen(progress: CollectionProgress, onOpen: (SecretCra
                 }
                 MenuButton(
                     label = stringResource(Res.string.crate_open, crate.cost),
-                    enabled = progress.points >= crate.cost,
+                    enabled = purchaseEnabled && progress.points >= crate.cost,
                     onClick = { onOpen(crate) },
                 )
             }

@@ -13,6 +13,10 @@ internal interface QuizPreferences {
     fun collection(): CollectionProgress
     fun saveSettings(settings: QuizSettings)
     fun saveCollection(progress: CollectionProgress)
+    fun loadAccountCollection(id: String): String? = null
+    fun saveAccountCollection(id: String, value: String) = Unit
+    fun collectionImportOwner(): String? = null
+    fun saveCollectionImportOwner(id: String) = Unit
     fun hasNightCitySignal(): Boolean
     fun saveNightCitySignal()
 }

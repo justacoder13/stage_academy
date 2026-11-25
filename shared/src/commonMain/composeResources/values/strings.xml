@@ -62,6 +62,9 @@
     <string name="leaderboard_account_rate_limit">Trop de demandes. Réessaie dans une minute.</string>
     <string name="leaderboard_account_unavailable">Le serveur ne répond pas. Vérifie ta connexion et réessaie.</string>
     <string name="leaderboard_account_waiting">Connexion au serveur… Le premier accès peut prendre une minute.</string>
+    <string name="collection_syncing">Synchronisation de la collection…</string>
+    <string name="collection_offline">La progression sera envoyée quand le serveur répondra.</string>
+    <string name="collection_retry">Actualiser la collection</string>
     <string name="leaderboard_https_required">La connexion nécessite une adresse HTTPS pour le serveur partagé.</string>
     <string name="leaderboard_server_required">Pour te connecter, cette version du jeu doit être reliée au serveur du classement.</string>
     <string name="leaderboard_show_shared">Voir le classement partagé</string>

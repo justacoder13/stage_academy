@@ -88,6 +88,18 @@ private class AndroidQuizPreferences(private val preferences: SharedPreferences)
         preferences.edit().putString("secretCollection", encodeCollection(progress)).apply()
     }
 
+    override fun loadAccountCollection(id: String) = preferences.getString("accountCollection.$id", null)
+
+    override fun saveAccountCollection(id: String, value: String) {
+        preferences.edit().putString("accountCollection.$id", value).apply()
+    }
+
+    override fun collectionImportOwner() = preferences.getString("collectionImportOwner", null)
+
+    override fun saveCollectionImportOwner(id: String) {
+        preferences.edit().putString("collectionImportOwner", id).apply()
+    }
+
     override fun hasNightCitySignal() = preferences.getBoolean("nightCitySignal", false)
 
     override fun saveNightCitySignal() {

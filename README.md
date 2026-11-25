@@ -85,8 +85,18 @@ après expiration, reconnecte-toi pour synchroniser tes parties.
 
 Les parties invitées et l’ancien historique restent accessibles dans
 **Voir les scores de cet appareil**. Sur Android, l’option
-`-PleaderboardUrl=` force le classement local. Les points dépensables dans
-la collection sont gérés par le jeu sur chaque appareil.
+`-PleaderboardUrl=` force le classement local.
+
+La collection suit aussi le compte Dev Quiz. Après la connexion, les
+secrets, leur qualité et le solde des caisses se synchronisent. La première
+connexion sur chaque appareil importe ses secrets locaux vers le premier
+compte utilisé. Le premier appareil qui initialise la collection fournit
+le solde de départ. Si un secret existe déjà sur les deux appareils,
+la meilleure qualité est conservée.
+
+Les secrets découverts et points gagnés pendant une coupure sont envoyés
+au retour de la connexion. Pour ouvrir une caisse avec le solde partagé,
+le serveur doit répondre. En mode invité, la collection reste locale.
 
 ## Repérer les fichiers
 

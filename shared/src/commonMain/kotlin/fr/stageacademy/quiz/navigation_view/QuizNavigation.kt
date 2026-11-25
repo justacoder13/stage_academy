@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
@@ -87,6 +88,15 @@ internal fun QuizNavigation(
     PlatformBackHandler(enabled = page != QuizPage.Start, onBack = presenter::goBack)
     LaunchedEffect(page) {
         if (page == QuizPage.Leaderboard) leaderboard.load()
+    }
+    LaunchedEffect(leaderboard.accountId) { presenter.collections.useAccount(leaderboard.accountId) }
+    LaunchedEffect(page, leaderboard.accountId) {
+        if (leaderboard.accountId != null && (page == QuizPage.Collection || page == QuizPage.Crates)) {
+            while (true) {
+                presenter.collections.refresh()
+                delay(15_000)
+            }
+        }
     }
     LaunchedEffect(challengeGame) { presenter.checkChallengeDiscovery() }
 
@@ -171,13 +181,23 @@ internal fun QuizNavigation(
                                 }
                             }
                             QuizPage.Leaderboard -> LeaderboardScreen(leaderboard)
-                            QuizPage.Collection -> SecretCollection(
-                                secretFloats = presenter.secretFloats,
-                                onOpen = presenter::openSecret,
-                                onDiscover = presenter::discoverSecret,
-                                onCrates = presenter::openCrates,
-                            )
-                            QuizPage.Crates -> SecretCratesScreen(presenter.collection, presenter::buyCrate)
+                            QuizPage.Collection -> {
+                                CollectionStatus(presenter)
+                                SecretCollection(
+                                    secretFloats = presenter.secretFloats,
+                                    onOpen = presenter::openSecret,
+                                    onDiscover = presenter::discoverSecret,
+                                    onCrates = presenter::openCrates,
+                                )
+                            }
+                            QuizPage.Crates -> {
+                                CollectionStatus(presenter)
+                                SecretCratesScreen(
+                                    presenter.collection,
+                                    presenter::buyCrate,
+                                    purchaseEnabled = !presenter.collections.syncing && !presenter.collections.unavailable,
+                                )
+                            }
                             QuizPage.Playing -> {
                                 if (question == null) {
                                     ResultPanel(state.score, state.questionCount, presenter::discoverSecret)
@@ -209,6 +229,19 @@ internal fun QuizNavigation(
         }
     }
     NavigationDialogs(presenter)
+}
+
+@Composable
+private fun CollectionStatus(presenter: QuizNavigationPresenter) {
+    if (presenter.leaderboard.accountId == null) return
+    val collection = presenter.collections
+    when {
+        collection.syncing -> Text(stringResource(Res.string.collection_syncing))
+        collection.unavailable -> {
+            Text(stringResource(Res.string.collection_offline))
+            TextButton(onClick = collection::refresh) { Text(stringResource(Res.string.collection_retry)) }
+        }
+    }
 }
 
 @Composable

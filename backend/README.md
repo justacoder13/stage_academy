@@ -180,6 +180,12 @@ premiers comptes. Les identifiants de partie empêchent les doublons lors des
 reprises réseau. Le serveur cumule le résultat envoyé par le jeu. Ce classement
 convient à un usage entre joueurs de confiance.
 
+La collection utilise le même JWT. `GET /collection` rend les secrets et
+le solde du compte. `POST /collection/sync` fusionne les découvertes et
+ajoute les points gagnés. `POST /collection/crates` tire la récompense et
+débite les points dans une seule transaction. Une même opération rejouée
+avec son identifiant ne crédite ni ne débite une deuxième fois.
+
 ## 8. Héberger sur Render gratuit avec Neon
 
 Le fichier `render.yaml` configure le service Render gratuit. Il lance les

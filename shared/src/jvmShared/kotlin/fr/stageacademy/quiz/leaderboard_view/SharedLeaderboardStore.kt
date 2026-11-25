@@ -1,5 +1,12 @@
 package fr.stageacademy.quiz.leaderboard_view
 
+import fr.stageacademy.quiz.collection_view.CollectionProgress
+import fr.stageacademy.quiz.collection_view.CollectionUpdate
+import fr.stageacademy.quiz.collection_view.CrateReward
+import fr.stageacademy.quiz.collection_view.PendingCrate
+import fr.stageacademy.quiz.collection_view.QuizSecret
+import fr.stageacademy.quiz.collection_view.SecretFloat
+import fr.stageacademy.quiz.collection_view.SecretFloatScale
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -30,6 +37,7 @@ internal class SharedLeaderboardStore(
     override val shared = true
     override val accountAvailable = URI(baseUrl).let { it.scheme == "https" || it.host in setOf("127.0.0.1", "localhost") }
     override val accountName get() = account?.name
+    override val collectionAccountId get() = account?.id
 
     override fun signOut() { session = null }
 
@@ -63,6 +71,45 @@ internal class SharedLeaderboardStore(
 
     override fun rankings() = standings().players
     override fun localRankings() = local.rankings()
+
+    override fun fetchCollection(accountId: String): CollectionProgress = parse {
+        readCollection(JSONObject(request("/collection", token = collectionToken(accountId))))
+    }
+
+    override fun pushCollection(accountId: String, update: CollectionUpdate): CollectionProgress = parse {
+        val floats = JSONObject()
+        update.delta.floats.forEach { (secret, value) -> floats.put(secret.name, value.units) }
+        val body = JSONObject().put("id", update.id).put("earned", update.delta.points).put("floats", floats)
+        update.initialPoints?.let { body.put("initial_points", it) }
+        readCollection(JSONObject(request("/collection/sync", body, collectionToken(accountId))))
+    }
+
+    override fun purchaseCrate(accountId: String, purchase: PendingCrate): CrateReward? = parse {
+        val body = JSONObject().put("id", purchase.id).put("crate", purchase.crate.name)
+        try {
+            val result = JSONObject(request("/collection/crates", body, collectionToken(accountId)))
+            val secret = QuizSecret.entries.firstOrNull { it.name == result.optString("reward") }
+                ?: throw IOException("Unknown crate reward")
+            CrateReward(secret, readCollection(result))
+        } catch (error: HttpError) {
+            if (error.status != 409) throw error
+            null
+        }
+    }
+
+    private fun collectionToken(accountId: String): String =
+        account?.takeIf { it.id == accountId }?.token ?: throw IOException("Account session unavailable")
+
+    private fun readCollection(result: JSONObject): CollectionProgress {
+        val floats = result.getJSONObject("floats")
+        val known = buildMap {
+            for (secret in QuizSecret.entries) {
+                val units = floats.optLong(secret.name, -1)
+                if (units in 0 until SecretFloatScale) put(secret, SecretFloat(units))
+            }
+        }
+        return CollectionProgress(result.getInt("points"), known)
+    }
 
     override fun record(id: String, player: String, points: Int): List<PlayerRanking> {
         val current = account

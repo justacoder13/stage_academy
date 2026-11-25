@@ -9,7 +9,7 @@ import fr.stageacademy.quiz.platformIo
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-internal class LeaderboardPresenter(private val store: LeaderboardStore, private val scope: CoroutineScope) {
+internal class LeaderboardPresenter(internal val store: LeaderboardStore, internal val scope: CoroutineScope) {
     private var refreshAfterLoad = false
     val shared: Boolean get() = store.shared
     val accountAvailable: Boolean get() = store.accountAvailable
@@ -18,6 +18,8 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
     var accountResult by mutableStateOf<AccountResult?>(null)
         private set
     var accountName by mutableStateOf(store.accountName)
+        private set
+    var accountId by mutableStateOf(store.collectionAccountId)
         private set
     var source by mutableStateOf(LeaderboardSource.Local)
         private set
@@ -44,6 +46,7 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
                 accountResult = result
                 if (result == AccountResult.Connected) {
                     accountName = store.accountName
+                    accountId = store.collectionAccountId
                     refresh()
                 }
                 if (result == AccountResult.Connected || result == AccountResult.Created) onSuccess(result)
@@ -62,6 +65,7 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
     fun signOut() {
         store.signOut()
         accountName = null
+        accountId = null
         accountResult = null
         rankings = deviceRankings
         source = LeaderboardSource.Local
@@ -91,6 +95,7 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
                 failed = true
             } finally {
                 accountName = store.accountName
+                accountId = store.collectionAccountId
                 loading = false
                 if (refreshAfterLoad) {
                     refreshAfterLoad = false

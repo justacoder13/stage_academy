@@ -1,5 +1,7 @@
 package fr.stageacademy.quiz.leaderboard_view
 
+import fr.stageacademy.quiz.collection_view.CollectionGateway
+
 internal data class PlayerRanking(val name: String, val points: Long)
 internal data class RankedRound(val id: String, val player: String, val points: Int, val accountId: String? = null)
 internal enum class AccountResult {
@@ -10,7 +12,7 @@ internal enum class LeaderboardSource { Local, Shared, Offline }
 
 internal data class LeaderboardStandings(val players: List<PlayerRanking>, val source: LeaderboardSource)
 
-internal interface LeaderboardStore {
+internal interface LeaderboardStore : CollectionGateway {
     val shared: Boolean get() = false
     val accountAvailable: Boolean get() = false
     val accountName: String? get() = null
