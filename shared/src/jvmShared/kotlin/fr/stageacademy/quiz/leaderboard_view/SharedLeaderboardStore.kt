@@ -7,12 +7,15 @@ import fr.stageacademy.quiz.collection_view.PendingCrate
 import fr.stageacademy.quiz.collection_view.QuizSecret
 import fr.stageacademy.quiz.collection_view.SecretFloat
 import fr.stageacademy.quiz.collection_view.SecretFloatScale
+import fr.stageacademy.quiz.profile_view.AccountProfile
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
+import java.util.Base64
+import java.util.UUID
 
 internal fun decodeRounds(games: JSONObject): Sequence<RankedRound> =
     games.keys().asSequence().mapNotNull { id ->
@@ -20,26 +23,65 @@ internal fun decodeRounds(games: JSONObject): Sequence<RankedRound> =
         RankedRound(id, round.optString("player"), round.optInt("points"), round.optString("accountId").ifBlank { null })
     }
 
-internal fun leaderboardStore(local: LocalLeaderboardStore, fallbackUrl: String = ""): LeaderboardStore {
+internal fun leaderboardStore(local: LocalLeaderboardStore, vault: SessionVault, fallbackUrl: String = ""): LeaderboardStore {
     val url = LeaderboardUrl.ifBlank { fallbackUrl }
-    return if (url.isBlank()) local else SharedLeaderboardStore(local, url)
+    return if (url.isBlank()) local else SharedLeaderboardStore(local, url, vault)
 }
 
 internal class SharedLeaderboardStore(
     private val local: LocalLeaderboardStore,
     private val baseUrl: String,
+    private val vault: SessionVault,
 ) : LeaderboardStore {
-    private data class Account(val id: String, val name: String, val token: String, val expiresAt: Long)
+    private data class Account(
+        val id: String, val name: String, val refresh: String?, val token: String = "", val expiresAt: Long = 0,
+    )
     private class HttpError(val status: Int) : IOException("Server HTTP $status")
     @Volatile private var session: Account? = null
-    private val account get() = session?.takeIf { System.nanoTime() < it.expiresAt }
+    private val sessionLock = Any()
+    private val account get() = session?.takeIf { it.refresh != null || System.nanoTime() < it.expiresAt }
     private val onRender = URI(baseUrl).host.endsWith(".onrender.com", ignoreCase = true)
     override val shared = true
     override val accountAvailable = URI(baseUrl).let { it.scheme == "https" || it.host in setOf("127.0.0.1", "localhost") }
     override val accountName get() = account?.name
     override val collectionAccountId get() = account?.id
 
-    override fun signOut() { session = null }
+    override fun restoreAccount(): Unit = synchronized(sessionLock) {
+        if (session != null || !accountAvailable) return@synchronized
+        parse {
+            val saved = vault.read()?.let(::JSONObject) ?: return@parse
+            if (saved.getString("server") == baseUrl) {
+                val id = UUID.fromString(saved.getString("id")).toString()
+                val refresh = saved.getString("refresh")
+                if (refresh.length == 43) session = Account(id, saved.getString("name"), refresh)
+            }
+        }
+    }
+
+    override fun signOut() {
+        val refresh = synchronized(sessionLock) {
+            val remembered = session?.refresh
+            clearSession()
+            remembered
+        }
+        if (refresh != null) {
+            try {
+                request("/auth/logout", JSONObject().put("refresh_token", refresh), timeout = 5_000)
+            } catch (_: IOException) {
+                // Le jeton a déjà été effacé de cet appareil.
+            }
+        }
+    }
+
+    private fun clearSession() {
+        session = null
+        vault.clear()
+    }
+
+    private fun accountFrom(result: JSONObject, refresh: String?): Account = Account(
+        UUID.fromString(result.getString("user_id")).toString(), result.getString("username"), refresh,
+        result.getString("access_token"), System.nanoTime() + result.getLong("expires_in") * 1_000_000_000L,
+    )
 
     override fun authenticate(username: String, password: String, email: String?): AccountResult {
         if (!accountAvailable) return AccountResult.Unavailable
@@ -51,10 +93,14 @@ internal class SharedLeaderboardStore(
             } else {
                 parse {
                     val result = JSONObject(request("/auth/login", body))
-                    session = Account(
-                        result.getString("user_id"), result.getString("username"), result.getString("access_token"),
-                        System.nanoTime() + result.getLong("expires_in") * 1_000_000_000L,
-                    )
+                    val connected = accountFrom(result, result.optString("refresh_token").ifBlank { null })
+                    synchronized(sessionLock) {
+                        connected.refresh?.let { refresh ->
+                            vault.write(JSONObject().put("server", baseUrl).put("id", connected.id)
+                                .put("name", connected.name).put("refresh", refresh).toString())
+                        }
+                        session = connected
+                    }
                 }
                 AccountResult.Connected
             }
@@ -97,8 +143,42 @@ internal class SharedLeaderboardStore(
         }
     }
 
-    private fun collectionToken(accountId: String): String =
-        account?.takeIf { it.id == accountId }?.token ?: throw IOException("Account session unavailable")
+    private fun collectionToken(accountId: String): String = synchronized(sessionLock) {
+        val current = account?.takeIf { it.id == accountId } ?: throw IOException("Account session unavailable")
+        if (current.token.isNotEmpty() && System.nanoTime() < current.expiresAt) return@synchronized current.token
+        val refresh = current.refresh ?: throw IOException("Account session expired")
+        try {
+            val access = parse {
+                val response = JSONObject(request("/auth/refresh", JSONObject().put("refresh_token", refresh)))
+                accountFrom(response, refresh)
+            }
+            if (access.id != accountId) throw IOException("Unexpected account")
+            session = access
+            access.token
+        } catch (error: HttpError) {
+            if (error.status == 401) clearSession()
+            throw error
+        }
+    }
+
+    override fun loadAccountProfile(id: String): AccountProfile? {
+        val response = request("/users/me/player-profile", token = collectionToken(id))
+        return if (response.trim() == "null") null else parse { readProfile(JSONObject(response)) }
+    }
+
+    override fun saveAccountProfile(id: String, profile: AccountProfile, replaceAvatar: Boolean): AccountProfile = parse {
+        val body = JSONObject().put("display_name", profile.name)
+        if (replaceAvatar) {
+            val avatar = profile.avatar?.let { Base64.getEncoder().encodeToString(it) }
+            body.put("avatar", avatar ?: JSONObject.NULL)
+        }
+        readProfile(JSONObject(request("/users/me/player-profile", body, collectionToken(id), method = "PUT")))
+    }
+
+    private fun readProfile(data: JSONObject): AccountProfile {
+        val avatar = if (data.isNull("avatar")) null else Base64.getDecoder().decode(data.getString("avatar"))
+        return AccountProfile(data.getString("display_name"), avatar)
+    }
 
     private fun readCollection(result: JSONObject): CollectionProgress {
         val floats = result.getJSONObject("floats")
@@ -119,15 +199,16 @@ internal class SharedLeaderboardStore(
     override fun standings(): LeaderboardStandings {
         val current = account ?: return LeaderboardStandings(local.rankings(), LeaderboardSource.Local)
         return try {
+            val token = collectionToken(current.id)
             val rounds = local.rounds().filter { it.accountId == current.id }
             var players = emptyList<PlayerRanking>()
             if (rounds.isEmpty()) {
-                players = readPlayers(request("/leaderboard", token = current.token))
+                players = readPlayers(request("/leaderboard", token = token))
             } else {
                 for (batch in rounds.chunked(100)) {
                     val body = JSONArray()
                     batch.forEach { round -> body.put(JSONObject().put("id", round.id).put("points", round.points)) }
-                    players = readPlayers(request("/leaderboard/rounds", JSONObject().put("rounds", body), current.token))
+                    players = readPlayers(request("/leaderboard/rounds", JSONObject().put("rounds", body), token))
                 }
             }
             LeaderboardStandings(players, LeaderboardSource.Shared)
@@ -149,13 +230,18 @@ internal class SharedLeaderboardStore(
         read()
     } catch (error: JSONException) {
         throw IOException("Invalid server response", error)
+    } catch (error: IllegalArgumentException) {
+        throw IOException("Invalid account data", error)
     }
 
-    private fun request(path: String, body: JSONObject? = null, token: String? = null): String {
+    private fun request(
+        path: String, body: JSONObject? = null, token: String? = null,
+        method: String = if (body == null) "GET" else "POST", timeout: Int = if (onRender) 90_000 else 5_000,
+    ): String {
         val connection = (URI("$baseUrl$path").toURL().openConnection() as HttpURLConnection).apply {
-            requestMethod = if (body == null) "GET" else "POST"
+            requestMethod = method
             connectTimeout = 4_000
-            readTimeout = if (onRender) 90_000 else 5_000
+            readTimeout = timeout
             instanceFollowRedirects = false
             token?.let { setRequestProperty("Authorization", "Bearer $it") }
         }
@@ -168,7 +254,11 @@ internal class SharedLeaderboardStore(
                 connection.outputStream.use { it.write(bytes) }
             }
             val status = connection.responseCode
-            if (status == 401 && token != null && session?.token == token) signOut()
+            if (status == 401 && token != null) synchronized(sessionLock) {
+                val previous = session?.takeIf { it.token == token }
+                if (previous?.refresh != null) session = previous.copy(token = "", expiresAt = 0)
+                else if (previous != null) clearSession()
+            }
             if (status !in 200..299) throw HttpError(status)
             return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
         } finally {

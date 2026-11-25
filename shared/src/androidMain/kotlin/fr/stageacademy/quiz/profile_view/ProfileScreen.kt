@@ -51,7 +51,9 @@ private enum class PhotoStatus(val message: StringResource) {
 }
 
 @Composable
-internal fun ProfileScreen(editor: ProfileContract<Uri, Bitmap, File>, isProfileSelected: () -> Boolean) {
+internal fun ProfileScreen(
+    editor: ProfileContract<Uri, Bitmap, File>, isProfileSelected: () -> Boolean, accountContent: @Composable () -> Unit,
+) {
     val context = LocalContext.current
     val activity = LocalActivity.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -167,7 +169,7 @@ internal fun ProfileScreen(editor: ProfileContract<Uri, Bitmap, File>, isProfile
         )
     }
 
-    ProfileLayout(editor, cameraOpen, pickerPending) {
+    ProfileLayout(editor, cameraOpen, pickerPending, accountContent) {
         when {
             !editor.ready -> PhotoMessage(stringResource(Res.string.profile_loading))
             cropImage != null -> PhotoCropPanel(

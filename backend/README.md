@@ -158,11 +158,20 @@ Laisse Uvicorn écouter sur `127.0.0.1:8000` et partage ce port avec
 `tailscale serve --bg 8000`. Utilise l’URL HTTPS du réseau privé pour
 compiler les deux versions du quiz. [Documentation Tailscale Serve](https://tailscale.com/docs/reference/tailscale-cli/serve)
 
-Dans le jeu, ouvre **Paramètres → Classement**. Les comptes Dev Quiz sont
+Dans le jeu, ouvre **Profil**. Les comptes Dev Quiz sont
 créés dans la base locale du serveur. L’API conserve un hachage Argon2id du mot
 de passe et délivre un jeton de session de 30 minutes par défaut. Les tentatives
 de connexion sont limitées par nom de joueur et pour l’ensemble du serveur.
 Le serveur ne fait aucun appel à un fournisseur d’identité.
+
+Le jeton de renouvellement est valable 30 jours et conservé sous forme
+de hachage dans la base. `POST /auth/refresh` délivre un nouveau JWT
+et `POST /auth/logout` révoque la session de cet appareil. L’application
+protège le jeton localement avec Android Keystore ou Windows DPAPI.
+
+`GET /users/me/player-profile` et `PUT /users/me/player-profile`
+lisent et enregistrent le nom affiché et la photo du compte connecté.
+L’API valide et réencode les photos JPEG pour retirer leurs métadonnées.
 
 Pour récupérer les points d’un compte créé avec l’ancienne connexion Google,
 lance la commande suivante dans un terminal interactif, depuis `backend/`.

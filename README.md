@@ -72,16 +72,22 @@ l’adresse d’exemple par celle de ton réseau privé.
 .\gradlew.bat :desktop:run -PleaderboardUrl=https://quiz.example.com
 ```
 
-Dans **Paramètres → Classement**, crée un compte Dev Quiz puis connecte-toi
+Dans **Profil**, crée un compte Dev Quiz puis connecte-toi
 avec ton nom de joueur et ton mot de passe. Termine une partie normale pour
 ajouter un point par bonne réponse au classement. Sur le deuxième appareil,
 connecte-toi avec le même compte pour retrouver le total.
 
 Les parties terminées pendant une session connectée sont conservées sur
 l’appareil si le réseau coupe. À la prochaine synchronisation avec le même
-compte, chaque partie est comptée une seule fois. Le jeton reste en mémoire
-pendant la session et expire après 30 minutes par défaut. Au redémarrage ou
-après expiration, reconnecte-toi pour synchroniser tes parties.
+compte, chaque partie est comptée une seule fois. L’application restaure
+la connexion après un redémarrage pendant 30 jours. **Se déconnecter**
+retire la session de l’appareil.
+
+**Enregistrer le profil** synchronise le nom affiché et la photo avec le
+compte. Le nom de connexion reste celui choisi à l’inscription. La photo
+reste facultative et le profil est accessible uniquement avec le compte.
+Pour synchroniser un ancien profil local après connexion, ouvre le formulaire
+et enregistre-le explicitement.
 
 Les parties invitées et l’ancien historique restent accessibles dans
 **Voir les scores de cet appareil**. Sur Android, l’option

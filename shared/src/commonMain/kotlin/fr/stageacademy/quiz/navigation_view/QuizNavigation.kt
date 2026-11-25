@@ -32,6 +32,7 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import fr.stageacademy.quiz.PlatformBackHandler
 import fr.stageacademy.quiz.profile_view.ProfilePanel
+import fr.stageacademy.quiz.profile_view.ProfileAccountCard
 import fr.stageacademy.quiz.about_view.AboutScreen
 import fr.stageacademy.quiz.challenge_view.ChallengeActions
 import fr.stageacademy.quiz.challenge_view.ChallengeScreen
@@ -132,7 +133,11 @@ internal fun QuizNavigation(
                 contentAlignment = if (page == QuizPage.Start) Alignment.Center else Alignment.TopCenter,
             ) {
                 if (page == QuizPage.Profile) {
-                    profile.Content(isProfileSelected = { presenter.navigation.page == QuizPage.Profile })
+                    key(profile) {
+                        profile.Content(isProfileSelected = { presenter.navigation.page == QuizPage.Profile }) {
+                            ProfileAccountCard(leaderboard)
+                        }
+                    }
                 } else key(page, state.questionIndex, challengeGame?.let { Triple(it.mode, it.index, it.end) }) {
                     Column(
                         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
@@ -180,7 +185,7 @@ internal fun QuizNavigation(
                                     )
                                 }
                             }
-                            QuizPage.Leaderboard -> LeaderboardScreen(leaderboard)
+                            QuizPage.Leaderboard -> LeaderboardScreen(leaderboard, presenter::openProfile)
                             QuizPage.Collection -> {
                                 CollectionStatus(presenter)
                                 SecretCollection(

@@ -62,14 +62,41 @@ internal class LeaderboardPresenter(internal val store: LeaderboardStore, intern
         if (!accountBusy) accountResult = null
     }
 
+    suspend fun restore() {
+        if (accountBusy || accountId != null || !accountAvailable) return
+        accountBusy = true
+        try {
+            withContext(platformIo) { store.restoreAccount() }
+            accountName = store.accountName
+            accountId = store.collectionAccountId
+            if (accountId != null) refresh()
+        } catch (_: StorageException) {
+            accountResult = AccountResult.Unavailable
+        } finally {
+            accountBusy = false
+        }
+    }
+
     fun signOut() {
-        store.signOut()
-        accountName = null
-        accountId = null
-        accountResult = null
-        rankings = deviceRankings
-        source = LeaderboardSource.Local
-        refresh()
+        if (accountBusy) return
+        accountBusy = true
+        scope.launch {
+            try {
+                withContext(platformIo) { store.signOut() }
+                accountResult = null
+            } catch (_: StorageException) {
+                accountResult = AccountResult.Unavailable
+            } finally {
+                accountName = store.accountName
+                accountId = store.collectionAccountId
+                accountBusy = false
+                if (accountId == null) {
+                    rankings = deviceRankings
+                    source = LeaderboardSource.Local
+                }
+                refresh()
+            }
+        }
     }
 
     private fun refresh() {

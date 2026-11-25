@@ -46,7 +46,7 @@ internal class QuizNavigationPresenter(
     private val quiz: QuizContract,
     val challenge: ChallengePresenter,
     val leaderboard: LeaderboardPresenter,
-    private val profile: ProfileIdentity,
+    private var profile: ProfileIdentity,
     private val preferences: QuizPreferences,
     initial: QuizNavigationState = QuizNavigationState(
         nightCitySignalFromPreviousLaunch = preferences.hasNightCitySignal(),
@@ -70,6 +70,8 @@ internal class QuizNavigationPresenter(
     val pauseSecretAvailable: Boolean
         get() = navigation.visitedSettingsDuringQuiz && !settings.showCorrections &&
             round.questionIndex + 1 == round.questionCount
+
+    fun updateProfile(value: ProfileIdentity) { profile = value }
 
     fun openHome() { navigation = navigation.copy(page = QuizPage.Start) }
     fun openProfile() { navigation = navigation.copy(page = QuizPage.Profile) }

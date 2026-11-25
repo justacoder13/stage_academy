@@ -4,6 +4,7 @@ import java.awt.Color
 import java.awt.RenderingHints
 import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -12,6 +13,29 @@ import javax.imageio.ImageIO
 
 internal class DesktopPhotoFiles(root: File) : ProfilePhotos<File, BufferedImage, File> {
     private val directory = File(root, "quiz_photos")
+
+    fun encodeAvatar(photo: File): ByteArray {
+        val preview = loadPreview(photo)
+        val scale = minOf(1.0, 512.0 / maxOf(preview.width, preview.height))
+        val image = BufferedImage(
+            (preview.width * scale).toInt().coerceAtLeast(1),
+            (preview.height * scale).toInt().coerceAtLeast(1),
+            BufferedImage.TYPE_INT_RGB,
+        )
+        val graphics = image.createGraphics()
+        try {
+            graphics.color = Color.WHITE
+            graphics.fillRect(0, 0, image.width, image.height)
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+            graphics.drawImage(preview, 0, 0, image.width, image.height, null)
+        } finally {
+            graphics.dispose()
+        }
+        return ByteArrayOutputStream().use { output ->
+            if (!ImageIO.write(image, "jpg", output)) throw IOException("Image encoding failed")
+            output.toByteArray()
+        }
+    }
 
     override fun prepareCapture(): File {
         Files.createDirectories(directory.toPath())

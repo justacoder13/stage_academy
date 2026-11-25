@@ -9,5 +9,5 @@ internal interface ProfileIdentity {
 
 internal interface ProfilePanel : ProfileIdentity {
     @Composable
-    fun Content(isProfileSelected: () -> Boolean)
+    fun Content(isProfileSelected: () -> Boolean, accountContent: @Composable () -> Unit)
 }

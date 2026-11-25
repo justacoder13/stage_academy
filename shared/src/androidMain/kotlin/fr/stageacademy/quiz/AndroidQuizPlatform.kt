@@ -11,9 +11,12 @@ import fr.stageacademy.quiz.collection_view.CollectionProgress
 import fr.stageacademy.quiz.collection_view.encodeCollection
 import fr.stageacademy.quiz.collection_view.loadCollection
 import fr.stageacademy.quiz.leaderboard_view.AndroidLeaderboardStore
+import fr.stageacademy.quiz.leaderboard_view.AndroidSessionVault
 import fr.stageacademy.quiz.leaderboard_view.LeaderboardStore
 import fr.stageacademy.quiz.leaderboard_view.leaderboardStore
 import fr.stageacademy.quiz.profile_view.PhotoFiles
+import fr.stageacademy.quiz.profile_view.AccountProfileGateway
+import fr.stageacademy.quiz.profile_view.AccountProfileStore
 import fr.stageacademy.quiz.profile_view.ProfileIdentity
 import fr.stageacademy.quiz.profile_view.ProfilePanel
 import fr.stageacademy.quiz.profile_view.ProfilePresenter
@@ -40,17 +43,21 @@ internal actual fun rememberQuizPreferences(): QuizPreferences {
 @Composable
 internal actual fun rememberLeaderboardStore(): LeaderboardStore {
     val context = LocalContext.current.applicationContext
-    return remember(context) { leaderboardStore(AndroidLeaderboardStore(context)) }
+    return remember(context) { leaderboardStore(AndroidLeaderboardStore(context), AndroidSessionVault(context)) }
 }
 
 @Composable
-internal actual fun rememberProfile(scope: CoroutineScope): ProfilePanel {
+internal actual fun rememberProfile(scope: CoroutineScope, gateway: AccountProfileGateway, accountId: String?): ProfilePanel {
     val context = LocalContext.current.applicationContext
-    return remember(context, scope) {
-        val presenter = ProfilePresenter(PhotoFiles(context), ProfileStore(context.noBackupFilesDir), scope)
+    return remember(context, scope, gateway, accountId) {
+        val photos = PhotoFiles(context)
+        val root = context.noBackupFilesDir
+        val repository = if (accountId == null) ProfileStore(root) else AccountProfileStore(root, accountId, gateway, photos::encodeAvatar)
+        val presenter = ProfilePresenter(photos, repository, scope)
         object : ProfilePanel, ProfileIdentity by presenter {
             @Composable
-            override fun Content(isProfileSelected: () -> Boolean) = ProfileScreen(presenter, isProfileSelected)
+            override fun Content(isProfileSelected: () -> Boolean, accountContent: @Composable () -> Unit) =
+                ProfileScreen(presenter, isProfileSelected, accountContent)
         }
     }
 }

@@ -2,6 +2,13 @@ package fr.stageacademy.quiz.profile_view
 
 internal data class SavedProfile<Photo>(val name: String, val photo: Photo?)
 
+internal data class AccountProfile(val name: String, val avatar: ByteArray?)
+
+internal interface AccountProfileGateway {
+    fun loadAccountProfile(id: String): AccountProfile? = null
+    fun saveAccountProfile(id: String, profile: AccountProfile, replaceAvatar: Boolean): AccountProfile = error("No profile server")
+}
+
 internal interface ProfileRepository<Photo> {
     fun load(): SavedProfile<Photo>?
     fun save(name: String, draftPhoto: Photo?): SavedProfile<Photo>

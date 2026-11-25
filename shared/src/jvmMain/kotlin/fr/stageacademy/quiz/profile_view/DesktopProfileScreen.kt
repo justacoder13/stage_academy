@@ -35,6 +35,7 @@ import javax.swing.filechooser.FileNameExtensionFilter
 internal fun DesktopProfileScreen(
     editor: ProfileContract<File, BufferedImage, File>,
     isProfileSelected: () -> Boolean,
+    accountContent: @Composable () -> Unit,
 ) {
     val window = LocalQuizWindow.current
     val focused = LocalQuizWindowFocused.current
@@ -105,7 +106,7 @@ internal fun DesktopProfileScreen(
     }
 
     val galleryTitle = stringResource(Res.string.photo_gallery)
-    ProfileLayout(editor, cameraOpen, pickerPending = false) {
+    ProfileLayout(editor, cameraOpen, pickerPending = false, accountContent) {
         when {
             !editor.ready -> PhotoMessage(stringResource(Res.string.profile_loading))
             cropImage != null -> PhotoCropPanel(

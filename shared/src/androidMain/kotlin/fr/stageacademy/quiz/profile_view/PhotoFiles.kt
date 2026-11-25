@@ -10,12 +10,31 @@ import android.graphics.Paint
 import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 
 internal class PhotoFiles(private val context: Context) : ProfilePhotos<Uri, Bitmap, File> {
     private val directory = File(context.cacheDir, "quiz_photos")
+
+    fun encodeAvatar(photo: File): ByteArray {
+        val preview = loadPreview(photo)
+        val scale = minOf(1f, 512f / maxOf(preview.width, preview.height))
+        val image = Bitmap.createScaledBitmap(
+            preview, (preview.width * scale).toInt().coerceAtLeast(1),
+            (preview.height * scale).toInt().coerceAtLeast(1), true,
+        )
+        try {
+            return ByteArrayOutputStream().use { output ->
+                if (!image.compress(Bitmap.CompressFormat.JPEG, 82, output)) throw IOException("Image encoding failed")
+                output.toByteArray()
+            }
+        } finally {
+            if (image != preview) image.recycle()
+            preview.recycle()
+        }
+    }
 
     override fun prepareCapture(): File {
         directory.mkdirs()

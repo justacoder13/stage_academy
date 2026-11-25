@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import fr.stageacademy.quiz.collection_view.CollectionProgress
 import fr.stageacademy.quiz.leaderboard_view.LeaderboardStore
 import fr.stageacademy.quiz.profile_view.ProfilePanel
+import fr.stageacademy.quiz.profile_view.AccountProfileGateway
 import fr.stageacademy.quiz.settings_view.QuizSettings
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -32,7 +33,7 @@ internal expect fun rememberQuizPreferences(): QuizPreferences
 internal expect fun rememberLeaderboardStore(): LeaderboardStore
 
 @Composable
-internal expect fun rememberProfile(scope: CoroutineScope): ProfilePanel
+internal expect fun rememberProfile(scope: CoroutineScope, gateway: AccountProfileGateway, accountId: String?): ProfilePanel
 
 @Composable
 internal expect fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit)

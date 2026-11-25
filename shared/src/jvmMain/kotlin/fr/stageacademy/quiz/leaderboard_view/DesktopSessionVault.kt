@@ -17,16 +17,16 @@ internal class DesktopSessionVault(root: File) : SessionVault {
     private val windows = Platform.isWindows()
     private val filePermissions = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------"))
 
-    override fun read(): String? = protected {
+    override fun read(): String? = withProtection {
         val bytes = try {
             Files.readAllBytes(file)
         } catch (_: NoSuchFileException) {
-            return@protected null
+            return@withProtection null
         }
         (if (windows) Crypt32Util.cryptUnprotectData(bytes) else bytes).toString(Charsets.UTF_8)
     }
 
-    override fun write(value: String) = protected {
+    override fun write(value: String) = withProtection {
         Files.createDirectories(directory)
         val bytes = value.toByteArray(Charsets.UTF_8)
         val encrypted = if (windows) Crypt32Util.cryptProtectData(bytes) else bytes
@@ -43,7 +43,7 @@ internal class DesktopSessionVault(root: File) : SessionVault {
 
     override fun clear() { Files.deleteIfExists(file) }
 
-    private inline fun <T> protected(action: () -> T): T = try {
+    private inline fun <T> withProtection(action: () -> T): T = try {
         action()
     } catch (error: Win32Exception) {
         throw IOException("Session storage unavailable", error)

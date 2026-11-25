@@ -1,10 +1,9 @@
 from base64 import b64decode, b64encode
-from binascii import Error as Base64Error
 from io import BytesIO
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Response
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 from pydantic import Field, StringConstraints
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -39,7 +38,7 @@ def clean_avatar(encoded: str | None) -> bytes | None:
                 if len(avatar) > MAX_AVATAR:
                     raise ValueError
                 return avatar
-    except (Base64Error, ValueError, OSError, UnidentifiedImageError, Image.DecompressionBombError):
+    except (ValueError, OSError, Image.DecompressionBombError):
         raise HTTPException(422, "La photo du profil est invalide.") from None
 
 
@@ -59,11 +58,14 @@ def load_profile(user: CurrentUser, session: DatabaseSession, reply: Response) -
 
 @router.put("", response_model=ProfileData)
 def save_profile(data: ProfileData, user: CurrentUser, session: DatabaseSession, reply: Response) -> ProfileData:
-    avatar = clean_avatar(data.avatar)
     insert = sqlite_insert if session.get_bind().dialect.name == "sqlite" else postgres_insert
-    values = {"display_name": data.display_name, "avatar": avatar}
+    values = {"display_name": data.display_name}
+    if "avatar" in data.model_fields_set:
+        values["avatar"] = clean_avatar(data.avatar)
     statement = insert(PlayerProfile).values(user_id=user.id, **values)
-    session.execute(statement.on_conflict_do_update(index_elements=["user_id"], set_=values))
+    saved = session.execute(
+        statement.on_conflict_do_update(index_elements=["user_id"], set_=values).returning(PlayerProfile)
+    ).scalar_one()
     session.commit()
     reply.headers["Cache-Control"] = "no-store"
-    return ProfileData(display_name=data.display_name, avatar=b64encode(avatar).decode("ascii") if avatar else None)
+    return response(saved)

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,15 +45,17 @@ fun QuizApp(onDarkThemeChanged: (Boolean) -> Unit = {}) {
         ChallengePresenter(sounds = sounds)
     }
     val scope = rememberCoroutineScope()
-    val profile = rememberProfile(scope)
     val leaderboardStore = rememberLeaderboardStore()
     val leaderboard = remember(leaderboardStore, scope) { LeaderboardPresenter(leaderboardStore, scope) }
+    LaunchedEffect(leaderboard) { leaderboard.restore() }
+    val profile = rememberProfile(scope, leaderboardStore, leaderboard.accountId)
     val presenter = rememberSaveable(
-        quiz, challenge, leaderboard, profile, preferences, sounds,
+        quiz, challenge, leaderboard, preferences, sounds,
         saver = QuizNavigationPresenter.saver(quiz, challenge, leaderboard, profile, preferences, sounds),
     ) {
         QuizNavigationPresenter(quiz, challenge, leaderboard, profile, preferences, sounds = sounds)
     }
+    SideEffect { presenter.updateProfile(profile) }
 
     var splashFinished by rememberSaveable { mutableStateOf(false) }
     val darkTheme = when (presenter.settings.appearance) {

@@ -52,6 +52,7 @@ internal fun ProfileLayout(
     editor: ProfileContract<*, *, *>,
     cameraOpen: Boolean,
     pickerPending: Boolean,
+    accountContent: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -59,6 +60,7 @@ internal fun ProfileLayout(
             modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            if (!cameraOpen && editor.cropImage == null) accountContent()
             content()
         }
         if (!cameraOpen && editor.cropImage == null) {

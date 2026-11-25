@@ -47,6 +47,7 @@
     <string name="challenge_streak_end">Fin de la série</string>
     <string name="leaderboard_description">Chaque bonne réponse rapporte un point. Les points des parties terminées s’additionnent pour chaque joueur sur cet appareil.</string>
     <string name="leaderboard_shared_description">Connecte-toi avec ton compte Dev Quiz pour cumuler tes points de parties normales sur tes appareils.</string>
+    <string name="leaderboard_open_profile">Ouvrir le profil</string>
     <string name="leaderboard_account_login">Se connecter</string>
     <string name="leaderboard_account_create">Créer un compte</string>
     <string name="leaderboard_account_connected">Compte connecté : %1$s</string>
@@ -88,7 +89,9 @@
     </plurals>
     <string name="profile_player">Profil du joueur</string>
     <string name="profile_name">Nom du joueur</string>
-    <string name="profile_name_required">Saisis un nom de joueur.</string>
+    <string name="profile_name_required">Saisis un nom de joueur de 1 à 64 caractères.</string>
+    <string name="profile_account">Compte Dev Quiz</string>
+    <string name="profile_synchronized">Ton nom et ta photo sont partagés sur tes appareils après enregistrement.</string>
     <string name="profile_default_avatar">Avatar par défaut</string>
     <string name="profile_save">Enregistrer le profil</string>
     <string name="profile_saving">Enregistrement du profil…</string>

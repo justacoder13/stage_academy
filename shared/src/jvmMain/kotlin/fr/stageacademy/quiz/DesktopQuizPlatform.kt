@@ -24,10 +24,13 @@ import fr.stageacademy.quiz.collection_view.CollectionProgress
 import fr.stageacademy.quiz.collection_view.encodeCollection
 import fr.stageacademy.quiz.collection_view.loadCollection
 import fr.stageacademy.quiz.leaderboard_view.DesktopLeaderboardStore
+import fr.stageacademy.quiz.leaderboard_view.DesktopSessionVault
 import fr.stageacademy.quiz.leaderboard_view.LeaderboardStore
 import fr.stageacademy.quiz.leaderboard_view.leaderboardStore
 import fr.stageacademy.quiz.profile_view.DesktopPhotoFiles
 import fr.stageacademy.quiz.profile_view.DesktopProfileScreen
+import fr.stageacademy.quiz.profile_view.AccountProfileGateway
+import fr.stageacademy.quiz.profile_view.AccountProfileStore
 import fr.stageacademy.quiz.profile_view.ProfileIdentity
 import fr.stageacademy.quiz.profile_view.ProfilePanel
 import fr.stageacademy.quiz.profile_view.ProfilePresenter
@@ -101,16 +104,24 @@ internal actual fun rememberQuizPreferences(): QuizPreferences =
 
 @Composable
 internal actual fun rememberLeaderboardStore(): LeaderboardStore =
-    remember { leaderboardStore(DesktopLeaderboardStore(dataDirectory), fallbackUrl = "http://127.0.0.1:8000") }
+    remember {
+        val localRoot = System.getenv("LOCALAPPDATA")?.let { File(it, "StageAcademy") } ?: dataDirectory
+        leaderboardStore(DesktopLeaderboardStore(dataDirectory), DesktopSessionVault(localRoot), "http://127.0.0.1:8000")
+    }
 
 @Composable
-internal actual fun rememberProfile(scope: CoroutineScope): ProfilePanel = remember(scope) {
-    val presenter = ProfilePresenter(DesktopPhotoFiles(dataDirectory), ProfileStore(dataDirectory), scope)
-    object : ProfilePanel, ProfileIdentity by presenter {
-        @Composable
-        override fun Content(isProfileSelected: () -> Boolean) = DesktopProfileScreen(presenter, isProfileSelected)
+internal actual fun rememberProfile(scope: CoroutineScope, gateway: AccountProfileGateway, accountId: String?): ProfilePanel =
+    remember(scope, gateway, accountId) {
+        val root = dataDirectory
+        val photos = DesktopPhotoFiles(root)
+        val repository = if (accountId == null) ProfileStore(root) else AccountProfileStore(root, accountId, gateway, photos::encodeAvatar)
+        val presenter = ProfilePresenter(photos, repository, scope)
+        object : ProfilePanel, ProfileIdentity by presenter {
+            @Composable
+            override fun Content(isProfileSelected: () -> Boolean, accountContent: @Composable () -> Unit) =
+                DesktopProfileScreen(presenter, isProfileSelected, accountContent)
+        }
     }
-}
 
 @Composable
 internal actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {

@@ -21,6 +21,7 @@ internal class ProfilePresenter<Source, Preview, Photo>(
     private var saved by mutableStateOf<SavedProfile<Photo>?>(null)
     override val savedName: String get() = saved?.name.orEmpty()
     private var loading = false
+    private var saveRevision = 0
 
     override var ready by mutableStateOf(false)
         private set
@@ -43,17 +44,20 @@ internal class ProfilePresenter<Source, Preview, Photo>(
         get() = name.trim() != saved?.name.orEmpty() || photo != saved?.photo
 
     override fun load() {
-        if (ready || loading) return
+        if (loading || saving || importing || (ready && hasChanges)) return
         loading = true
+        val revision = saveRevision
         scope.launch {
             try {
                 val (profile, draftPhoto) = withContext(platformIo) {
                     val profile = store.load()
                     profile to (if (profile == null) photos.previousDraft() else profile.photo)
                 }
-                saved = profile
-                name = profile?.name.orEmpty()
-                photo = draftPhoto
+                if (revision == saveRevision && (!ready || !hasChanges)) {
+                    saved = profile
+                    name = profile?.name.orEmpty()
+                    photo = draftPhoto
+                }
             } catch (_: StorageException) {
                 message = Res.string.profile_load_failed
             } finally {
@@ -138,12 +142,13 @@ internal class ProfilePresenter<Source, Preview, Photo>(
         if (!ready || saving || importing || cropImage != null) return
         val trimmedName = name.trim()
         message = null
-        if (trimmedName.isBlank()) {
+        if (trimmedName.isBlank() || trimmedName.length > 64) {
             nameInvalid = true
             return
         }
 
         val draftPhoto = photo
+        saveRevision++
         saving = true
         scope.launch {
             try {
