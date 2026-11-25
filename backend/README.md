@@ -152,45 +152,65 @@ uv run --locked --extra postgres uvicorn app.main:app --host 127.0.0.1 --port 80
 Alembic crée les tables dans PostgreSQL. Pour retrouver des comptes existants,
 il faut aussi importer les lignes de la base SQLite.
 
-## 7. Connexion Google et classement
+## 7. Classement sur le réseau privé
 
-1. Dans Google Cloud Console, configure l’écran de consentement OAuth. Si
-   l’application est en mode test, ajoute les comptes Google qui vont tester.
-2. Crée un client OAuth de type **Application Web** et ajoute l’URI de
-   redirection exacte. Pour plusieurs appareils, utilise par exemple
-   `https://quiz.example.com/auth/google/callback` avec le vrai domaine du
-   backend. Pour un test depuis le bureau uniquement, tu peux autoriser
-   `http://127.0.0.1:8000/auth/google/callback`.
-3. Dans `.env`, configure ces trois variables. La clé secrète reste sur le
-   backend. [Configuration OAuth pour un serveur web](https://developers.google.com/identity/protocols/oauth2/web-server)
+Laisse Uvicorn écouter sur `127.0.0.1:8000` et partage ce port avec
+`tailscale serve --bg 8000`. Utilise l’URL HTTPS du réseau privé pour
+compiler les deux versions du quiz. [Documentation Tailscale Serve](https://tailscale.com/docs/reference/tailscale-cli/serve)
 
-   ```dotenv
-   GOOGLE_CLIENT_ID=identifiant-fourni-par-google
-   GOOGLE_CLIENT_SECRET=secret-fourni-par-google
-   GOOGLE_REDIRECT_URI=https://quiz.example.com/auth/google/callback
-   ```
+Dans le jeu, ouvre **Paramètres → Classement**. Les comptes Dev Quiz sont
+créés dans la base locale du serveur. L’API conserve un hachage Argon2id du mot
+de passe et délivre un jeton de session de 30 minutes par défaut. Les tentatives
+de connexion sont limitées par nom de joueur et pour l’ensemble du serveur.
+Le serveur ne fait aucun appel à un fournisseur d’identité.
 
-4. Applique la migration et relance l’API. Pour le partage entre appareils,
-   expose-la derrière un proxy HTTPS et conserve la base sur un stockage
-   persistant.
+Pour récupérer les points d’un compte créé avec l’ancienne connexion Google,
+lance la commande suivante dans un terminal interactif, depuis `backend/`.
+Elle affiche le nom de connexion et te laisse définir le mot de passe
+localement. S’il existe plusieurs anciens comptes, ajoute le nom du compte
+comme argument.
+
+```powershell
+uv run --locked python -m app.activate_password
+```
+
+Les deux routes `GET /leaderboard` et `POST /leaderboard/rounds` demandent un
+JWT valide. Le classement expose les pseudonymes et les points des 100
+premiers comptes. Les identifiants de partie empêchent les doublons lors des
+reprises réseau. Le serveur cumule le résultat envoyé par le jeu. Ce classement
+convient à un usage entre joueurs de confiance.
+
+## 8. Héberger sur Render gratuit avec Neon
+
+Le fichier `render.yaml` configure le service Render gratuit. Il lance les
+migrations avant de démarrer l’API. Neon conserve les comptes et les scores
+dans PostgreSQL. Render peut mettre l’API en veille après 15 minutes sans
+activité. La première connexion peut alors prendre environ une minute.
+[Limites de l’offre Render](https://render.com/docs/free)
+
+1. Crée une base Neon gratuite et récupère son URL PostgreSQL. Pour Render,
+   utilise le préfixe `postgresql+psycopg://` et conserve les paramètres TLS
+   fournis par Neon, par exemple `sslmode=require`.
+2. Dans Render, crée un Blueprint à partir de la branche qui contient
+   `render.yaml` et renseigne l’adresse de Neon dans `DATABASE_URL`.
+   Render génère `JWT_SECRET_KEY` et `REGISTRATION_CODE`. Donne ce code
+   uniquement aux personnes autorisées à créer un compte.
+3. Vérifie que `/health` sur l’URL Render répond `{"status":"ok"}`. Si
+   ton ancien compte a été créé avec Google, active son mot de passe sur
+   le PC avec la commande de la section précédente.
+4. Avant d’autoriser des inscriptions sur Render, lance les commandes
+   suivantes depuis `backend/` sur le PC. Colle l’URL de Neon lorsque le
+   terminal la demande.
 
    ```powershell
-   uv run --locked alembic upgrade head
-   uv run --locked uvicorn app.main:app --host 127.0.0.1 --port 8000 --no-access-log
+   uv sync --locked --extra postgres
+   uv run --locked --extra postgres python -m app.import_leaderboard
    ```
 
-Le navigateur ouvre la page Google. Le serveur valide le code et le jeton
-Google puis remet un JWT à l’application par une demande à usage unique.
-L’accès Google demande seulement l’identité et l’adresse e-mail. Si cette
-adresse est déjà utilisée pour un compte avec mot de passe, conserve cette
-méthode de connexion pour ce compte.
-
-L’API expose les 100 premiers du classement avec `GET /leaderboard`. Seuls
-les pseudonymes et les scores sont publics. `POST /leaderboard/rounds`
-demande un JWT et cumule les scores transmis par le quiz sur le compte
-connecté. Les identifiants de partie empêchent les doublons lors des
-reprises réseau. Le serveur reçoit le résultat du quiz sans rejouer les
-réponses. Ce classement convient à un usage entre joueurs de confiance.
-
-Lors du déploiement, configure les journaux du proxy pour omettre la chaîne
-de requête sur le callback Google. Elle contient le code d’autorisation.
+   L’import conserve les identifiants, les hachages et les scores.
+   Il refuse de remplacer les comptes déjà présents. Suspends les parties
+   sur l’ancien serveur pendant la bascule.
+5. Recompile les deux versions avec `-PleaderboardUrl=https://<ton-service>.onrender.com`.
+   Installe le nouvel APK et vérifie le même classement sur les deux
+   appareils. Fais aussi un essai sur Android depuis un autre réseau
+   après arrêt du backend local.

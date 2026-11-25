@@ -8,19 +8,14 @@ import fr.stageacademy.quiz.StorageException
 import fr.stageacademy.quiz.platformIo
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 
 internal class LeaderboardPresenter(private val store: LeaderboardStore, private val scope: CoroutineScope) {
     private var refreshAfterLoad = false
     val shared: Boolean get() = store.shared
-    val googleAvailable: Boolean get() = store.googleAvailable
-    private var googleJob: Job? = null
-    var googleBusy by mutableStateOf(false)
+    val accountAvailable: Boolean get() = store.accountAvailable
+    var accountBusy by mutableStateOf(false)
         private set
-    var googleStatus by mutableStateOf<GoogleLoginStatus?>(null)
+    var accountResult by mutableStateOf<AccountResult?>(null)
         private set
     var accountName by mutableStateOf(store.accountName)
         private set
@@ -37,45 +32,39 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
     var failed by mutableStateOf(false)
         private set
 
-    fun connectGoogle(openBrowser: (String) -> Unit) {
-        if (!googleAvailable || googleBusy) return
-        googleBusy = true
-        googleStatus = null
-        googleJob = scope.launch {
+    fun authenticate(
+        username: String, password: String, email: String?, invitation: String?, onSuccess: (AccountResult) -> Unit,
+    ) {
+        if (!accountAvailable || accountBusy) return
+        accountBusy = true
+        accountResult = null
+        scope.launch {
             try {
-                val login = withContext(platformIo) { store.startGoogleLogin() }
-                openBrowser(login.authorizationUrl)
-                var result = GoogleLoginStatus.Pending
-                while (result == GoogleLoginStatus.Pending) {
-                    delay(2_000)
-                    result = withContext(platformIo) { store.pollGoogleLogin(login) }
-                }
-                if (result == GoogleLoginStatus.Connected) {
+                val result = withContext(platformIo) { store.authenticate(username, password, email, invitation) }
+                accountResult = result
+                if (result == AccountResult.Connected) {
                     accountName = store.accountName
                     refresh()
-                } else {
-                    googleStatus = result
                 }
-            } catch (_: GoogleConfigurationException) {
-                googleStatus = GoogleLoginStatus.NotConfigured
+                if (result == AccountResult.Connected || result == AccountResult.Created) onSuccess(result)
             } catch (_: StorageException) {
-                googleStatus = GoogleLoginStatus.Failed
-            } catch (_: IllegalArgumentException) {
-                googleStatus = GoogleLoginStatus.Failed
-            } catch (_: UnsupportedOperationException) {
-                googleStatus = GoogleLoginStatus.Failed
+                accountResult = AccountResult.Unavailable
             } finally {
-                if (!currentCoroutineContext().isActive) store.signOut()
-                googleBusy = false
+                accountBusy = false
             }
         }
     }
 
-    fun cancelGoogle() {
-        googleJob?.cancel()
+    fun clearAccountResult() {
+        if (!accountBusy) accountResult = null
+    }
+
+    fun signOut() {
         store.signOut()
         accountName = null
-        googleStatus = null
+        accountResult = null
+        rankings = deviceRankings
+        source = LeaderboardSource.Local
         refresh()
     }
 
@@ -94,9 +83,10 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
                     val device = if (standings.source == LeaderboardSource.Shared) store.localRankings() else standings.players
                     standings to device
                 }
-                rankings = standings.players
                 deviceRankings = device
-                source = standings.source
+                val signedOut = shared && store.accountName == null
+                rankings = if (signedOut) device else standings.players
+                source = if (signedOut) LeaderboardSource.Local else standings.source
             } catch (_: StorageException) {
                 failed = true
             } finally {

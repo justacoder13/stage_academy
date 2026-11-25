@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -15,11 +16,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
@@ -30,42 +33,39 @@ import fr.stageacademy.quiz.shared_view.MenuCard
 @Composable
 internal fun LeaderboardScreen(presenter: LeaderboardPresenter) {
     var showDevice by rememberSaveable { mutableStateOf(false) }
+    var creatingAccount by remember { mutableStateOf<Boolean?>(null) }
     val players = if (showDevice) presenter.deviceRankings else presenter.rankings
     val loading = presenter.loading
     val failed = presenter.failed
     val shared = presenter.shared
-    val uriHandler = LocalUriHandler.current
     MenuCard(title = stringResource(Res.string.leaderboard)) {
         Text(
             stringResource(if (shared) Res.string.leaderboard_shared_description else Res.string.leaderboard_description),
             style = MaterialTheme.typography.bodyMedium,
         )
-        if (shared && presenter.googleAvailable) {
+        if (shared && presenter.accountAvailable) {
             val accountName = presenter.accountName
-            when {
-                presenter.googleBusy -> {
-                    Text(stringResource(Res.string.google_waiting))
-                    TextButton(onClick = presenter::cancelGoogle) { Text(stringResource(Res.string.google_cancel)) }
+            if (accountName != null) {
+                Text(stringResource(Res.string.leaderboard_account_connected, accountName))
+                TextButton(onClick = presenter::signOut) { Text(stringResource(Res.string.leaderboard_account_logout)) }
+            } else {
+                if (presenter.accountResult == AccountResult.Created && creatingAccount == null) {
+                    Text(stringResource(Res.string.leaderboard_account_created))
                 }
-                accountName != null -> {
-                    Text(stringResource(Res.string.google_connected, accountName))
-                    TextButton(onClick = presenter::cancelGoogle) { Text(stringResource(Res.string.google_logout)) }
+                Button(onClick = {
+                    presenter.clearAccountResult()
+                    creatingAccount = false
+                }) {
+                    Text(stringResource(Res.string.leaderboard_account_login))
                 }
-                else -> Button(onClick = { presenter.connectGoogle(uriHandler::openUri) }) {
-                    Text(stringResource(Res.string.google_login))
-                }
+                TextButton(onClick = {
+                    presenter.clearAccountResult()
+                    creatingAccount = true
+                }) { Text(stringResource(Res.string.leaderboard_account_create)) }
             }
-            val error = when (presenter.googleStatus) {
-                GoogleLoginStatus.Conflict -> Res.string.google_conflict
-                GoogleLoginStatus.Expired -> Res.string.google_expired
-                GoogleLoginStatus.Failed -> Res.string.google_failed
-                GoogleLoginStatus.NotConfigured -> Res.string.google_not_configured
-                else -> null
-            }
-            if (error != null) Text(stringResource(error))
         } else {
-            Button(onClick = {}, enabled = false) { Text(stringResource(Res.string.google_login)) }
-            Text(stringResource(if (shared) Res.string.google_https_required else Res.string.google_server_required))
+            Button(onClick = {}, enabled = false) { Text(stringResource(Res.string.leaderboard_account_login)) }
+            Text(stringResource(if (shared) Res.string.leaderboard_https_required else Res.string.leaderboard_server_required))
         }
         when {
             loading -> Text(stringResource(Res.string.leaderboard_loading))
@@ -77,7 +77,9 @@ internal fun LeaderboardScreen(presenter: LeaderboardPresenter) {
             players.isEmpty() -> Text(stringResource(Res.string.leaderboard_empty))
         }
         if (shared && !loading && !failed) {
-            TextButton(onClick = presenter::load) { Text(stringResource(Res.string.leaderboard_refresh)) }
+            if (presenter.accountName != null) {
+                TextButton(onClick = presenter::load) { Text(stringResource(Res.string.leaderboard_refresh)) }
+            }
             if (presenter.source == LeaderboardSource.Shared) {
                 val toggleLabel = if (showDevice) Res.string.leaderboard_show_shared else Res.string.leaderboard_show_device
                 TextButton(onClick = { showDevice = !showDevice }) { Text(stringResource(toggleLabel)) }
@@ -97,6 +99,88 @@ internal fun LeaderboardScreen(presenter: LeaderboardPresenter) {
             }
         }
     }
+    creatingAccount?.let { create ->
+        LeaderboardAccountDialog(create, presenter) { creatingAccount = null }
+    }
+}
+
+@Composable
+private fun LeaderboardAccountDialog(create: Boolean, presenter: LeaderboardPresenter, onClose: () -> Unit) {
+    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var invitation by remember { mutableStateOf("") }
+    val valid = username.trim().matches(Regex("[a-zA-Z0-9_.-]{3,32}")) &&
+        password.isNotEmpty() && password.length <= 128 && (!create || (password.length >= 12 && email.isNotBlank()))
+    val action = if (create) Res.string.leaderboard_account_create else Res.string.leaderboard_account_login
+    val error = when (presenter.accountResult) {
+        AccountResult.InvalidCredentials -> Res.string.leaderboard_account_invalid
+        AccountResult.InvalidFields -> Res.string.leaderboard_account_fields
+        AccountResult.InvalidInvitation -> Res.string.leaderboard_account_invalid_invitation
+        AccountResult.Conflict -> Res.string.leaderboard_account_conflict
+        AccountResult.RateLimited -> Res.string.leaderboard_account_rate_limit
+        AccountResult.Unavailable -> Res.string.leaderboard_account_unavailable
+        else -> null
+    }
+    AlertDialog(
+        onDismissRequest = { if (!presenter.accountBusy) onClose() },
+        title = { Text(stringResource(action)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text(stringResource(Res.string.leaderboard_account_username)) },
+                    singleLine = true,
+                    enabled = !presenter.accountBusy,
+                )
+                if (create) {
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = { Text(stringResource(Res.string.leaderboard_account_email)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        singleLine = true,
+                        enabled = !presenter.accountBusy,
+                    )
+                    OutlinedTextField(
+                        value = invitation,
+                        onValueChange = { invitation = it },
+                        label = { Text(stringResource(Res.string.leaderboard_account_invitation)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        enabled = !presenter.accountBusy,
+                    )
+                }
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text(stringResource(Res.string.leaderboard_account_password)) },
+                    supportingText = if (create) {
+                        { Text(stringResource(Res.string.leaderboard_account_password_length)) }
+                    } else null,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true,
+                    enabled = !presenter.accountBusy,
+                )
+                if (error != null) Text(stringResource(error), color = MaterialTheme.colorScheme.error)
+                if (presenter.accountBusy) Text(stringResource(Res.string.leaderboard_account_waiting))
+            }
+        },
+        confirmButton = {
+            Button(enabled = valid && !presenter.accountBusy, onClick = {
+                val code = invitation.trim().takeIf { create && it.isNotEmpty() }
+                presenter.authenticate(username.trim(), password, email.trim().takeIf { create }, code) {
+                    password = ""
+                    onClose()
+                }
+            }) { Text(stringResource(action)) }
+        },
+        dismissButton = {
+            TextButton(enabled = !presenter.accountBusy, onClick = onClose) { Text(stringResource(Res.string.close)) }
+        },
+    )
 }
 
 @Composable

@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field, SecretStr
 
@@ -13,3 +14,6 @@ class LoginRequest(RequestModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: Literal["bearer"] = "bearer"
+    expires_in: int
+    user_id: UUID
+    username: str

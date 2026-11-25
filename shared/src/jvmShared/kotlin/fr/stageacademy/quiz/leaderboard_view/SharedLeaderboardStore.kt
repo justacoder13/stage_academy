@@ -23,37 +23,43 @@ internal class SharedLeaderboardStore(
     private val baseUrl: String,
 ) : LeaderboardStore {
     private data class Account(val id: String, val name: String, val token: String, val expiresAt: Long)
+    private class HttpError(val status: Int) : IOException("Server HTTP $status")
     @Volatile private var session: Account? = null
     private val account get() = session?.takeIf { System.nanoTime() < it.expiresAt }
+    private val onRender = URI(baseUrl).host.endsWith(".onrender.com", ignoreCase = true)
     override val shared = true
-    override val googleAvailable = URI(baseUrl).let { it.scheme == "https" || it.host in setOf("127.0.0.1", "localhost") }
+    override val accountAvailable = URI(baseUrl).let { it.scheme == "https" || it.host in setOf("127.0.0.1", "localhost") }
     override val accountName get() = account?.name
 
     override fun signOut() { session = null }
 
-    override fun startGoogleLogin(): GoogleLogin = parse {
-        val result = JSONObject(request("/auth/google/start", JSONObject(), googleStart = true))
-        val url = result.getString("authorization_url")
-        val uri = URI(url)
-        if (uri.scheme != "https" || uri.host != "accounts.google.com") throw IOException("Invalid Google URL")
-        GoogleLogin(result.getString("id"), result.getString("secret"), url)
-    }
-
-    override fun pollGoogleLogin(login: GoogleLogin): GoogleLoginStatus = parse {
-        val body = JSONObject().put("id", login.id).put("secret", login.secret)
-        val result = JSONObject(request("/auth/google/poll", body))
-        when (result.getString("status")) {
-            "pending" -> GoogleLoginStatus.Pending
-            "expired" -> GoogleLoginStatus.Expired
-            "conflict" -> GoogleLoginStatus.Conflict
-            "complete" -> {
-                session = Account(
-                    result.getString("id"), result.getString("username"), result.getString("access_token"),
-                    System.nanoTime() + result.getLong("expires_in") * 1_000_000_000L,
-                )
-                GoogleLoginStatus.Connected
+    override fun authenticate(username: String, password: String, email: String?, invitation: String?): AccountResult {
+        if (!accountAvailable) return AccountResult.Unavailable
+        val body = JSONObject().put("username", username).put("password", password)
+        return try {
+            if (email != null) {
+                invitation?.let { body.put("registration_code", it) }
+                request("/auth/register", body.put("email", email))
+                AccountResult.Created
+            } else {
+                parse {
+                    val result = JSONObject(request("/auth/login", body))
+                    session = Account(
+                        result.getString("user_id"), result.getString("username"), result.getString("access_token"),
+                        System.nanoTime() + result.getLong("expires_in") * 1_000_000_000L,
+                    )
+                }
+                AccountResult.Connected
             }
-            else -> GoogleLoginStatus.Failed
+        } catch (error: HttpError) {
+            when (error.status) {
+                401 -> AccountResult.InvalidCredentials
+                403 -> AccountResult.InvalidInvitation
+                409 -> AccountResult.Conflict
+                422 -> AccountResult.InvalidFields
+                429 -> AccountResult.RateLimited
+                else -> AccountResult.Unavailable
+            }
         }
     }
 
@@ -66,13 +72,13 @@ internal class SharedLeaderboardStore(
     }
 
     override fun standings(): LeaderboardStandings {
-        val current = account
+        val current = account ?: return LeaderboardStandings(local.rankings(), LeaderboardSource.Local)
         return try {
-            val rounds = if (current == null) emptyList() else local.rounds().filter { it.accountId == current.id }
+            val rounds = local.rounds().filter { it.accountId == current.id }
             var players = emptyList<PlayerRanking>()
             if (rounds.isEmpty()) {
-                players = readPlayers(request("/leaderboard"))
-            } else if (current != null) {
+                players = readPlayers(request("/leaderboard", token = current.token))
+            } else {
                 for (batch in rounds.chunked(100)) {
                     val body = JSONArray()
                     batch.forEach { round -> body.put(JSONObject().put("id", round.id).put("points", round.points)) }
@@ -81,7 +87,8 @@ internal class SharedLeaderboardStore(
             }
             LeaderboardStandings(players, LeaderboardSource.Shared)
         } catch (_: IOException) {
-            LeaderboardStandings(local.rankings(), LeaderboardSource.Offline)
+            val source = if (account == null) LeaderboardSource.Local else LeaderboardSource.Offline
+            LeaderboardStandings(local.rankings(), source)
         }
     }
 
@@ -97,17 +104,13 @@ internal class SharedLeaderboardStore(
         read()
     } catch (error: JSONException) {
         throw IOException("Invalid server response", error)
-    } catch (error: java.net.URISyntaxException) {
-        throw IOException("Invalid server URL", error)
     }
 
-    private fun request(
-        path: String, body: JSONObject? = null, token: String? = null, googleStart: Boolean = false,
-    ): String {
+    private fun request(path: String, body: JSONObject? = null, token: String? = null): String {
         val connection = (URI("$baseUrl$path").toURL().openConnection() as HttpURLConnection).apply {
             requestMethod = if (body == null) "GET" else "POST"
             connectTimeout = 4_000
-            readTimeout = 5_000
+            readTimeout = if (onRender) 90_000 else 5_000
             instanceFollowRedirects = false
             token?.let { setRequestProperty("Authorization", "Bearer $it") }
         }
@@ -120,9 +123,8 @@ internal class SharedLeaderboardStore(
                 connection.outputStream.use { it.write(bytes) }
             }
             val status = connection.responseCode
-            if (status == 503 && googleStart) throw GoogleConfigurationException()
             if (status == 401 && token != null && session?.token == token) signOut()
-            if (status != 200) throw IOException("Server HTTP $status")
+            if (status !in 200..299) throw HttpError(status)
             return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
         } finally {
             connection.disconnect()

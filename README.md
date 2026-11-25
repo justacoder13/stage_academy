@@ -38,7 +38,7 @@ Sous Windows, si le projet est dans OneDrive, Gradle écrit les fichiers génér
 dans `%LOCALAPPDATA%\StageAcademy\build\<identifiant-du-projet>\<module>`.
 Dans le dossier du module `app`, l’APK se trouve sous `outputs\apk\debug`.
 
-## Connexion Google et classement partagé
+## Compte Dev Quiz et classement partagé
 
 Pour un essai sur le même ordinateur, lance FastAPI sur `127.0.0.1:8000`
 depuis `backend/`, puis lance `.\gradlew.bat :desktop:run` depuis la
@@ -54,25 +54,23 @@ adb -d reverse tcp:8000 tcp:8000
 .\gradlew.bat :app:assembleDebug -PleaderboardUrl=http://127.0.0.1:8000
 ```
 
-Installe l’APK de développement généré sur le téléphone. Cette configuration
-utilise également `http://127.0.0.1:8000/auth/google/callback` comme
-redirection autorisée dans Google Cloud. Si le téléphone a été débranché,
-rebranche-le et rétablis le tunnel avec `adb -d reverse tcp:8000 tcp:8000`.
+Installe l’APK de développement généré sur le téléphone. Si le téléphone a été
+débranché, rebranche-le et rétablis le tunnel avec `adb -d reverse tcp:8000 tcp:8000`.
 
-Configure la connexion Google dans le [backend FastAPI](backend/README.md#7-connexion-google-et-classement)
-et utilise la même adresse HTTPS pour Android et la version bureau. Remplace
-l’adresse d’exemple par celle du backend.
+Pour jouer sans câble, garde le [backend FastAPI](backend/README.md#7-classement-sur-le-réseau-privé)
+sur le PC et partage son port avec Tailscale Serve. Utilise la même adresse
+HTTPS pour Android et le bureau et remplace l’adresse d’exemple par celle
+de ton réseau privé.
 
 ```powershell
 .\gradlew.bat :app:assembleDebug :desktop:installDist -PleaderboardUrl=https://quiz.example.com
 .\gradlew.bat :desktop:run -PleaderboardUrl=https://quiz.example.com
 ```
 
-Dans **Paramètres → Classement**, clique sur **Se connecter avec Google**.
-Une fois la connexion confirmée dans le navigateur, reviens dans le jeu.
-Termine une partie normale connecté pour ajouter un point par bonne réponse
-au classement. Sur le deuxième appareil, utilise le même compte Google puis
-actualise le classement pour retrouver ce total.
+Dans **Paramètres → Classement**, crée un compte Dev Quiz puis connecte-toi
+avec ton nom de joueur et ton mot de passe. Termine une partie normale pour
+ajouter un point par bonne réponse au classement. Sur le deuxième appareil,
+connecte-toi avec le même compte pour retrouver le total.
 
 Les parties terminées pendant une session connectée sont conservées sur
 l’appareil si le réseau coupe. À la prochaine synchronisation avec le même

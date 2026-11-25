@@ -28,7 +28,6 @@ class Ranking(BaseModel):
     points: int
 
 
-@router.get("", response_model=list[Ranking])
 def standings(session: DatabaseSession) -> list[Ranking]:
     total = func.sum(ScoreRound.points)
     query = (
@@ -39,6 +38,11 @@ def standings(session: DatabaseSession) -> list[Ranking]:
         .limit(100)
     )
     return [Ranking(name=name, points=points) for name, points in session.execute(query)]
+
+
+@router.get("", response_model=list[Ranking])
+def read_leaderboard(session: DatabaseSession, _user: CurrentUser) -> list[Ranking]:
+    return standings(session)
 
 
 @router.post("/rounds", response_model=list[Ranking])
