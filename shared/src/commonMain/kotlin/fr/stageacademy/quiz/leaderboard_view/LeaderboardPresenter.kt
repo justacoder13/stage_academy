@@ -8,10 +8,20 @@ import fr.stageacademy.quiz.StorageException
 import fr.stageacademy.quiz.platformIo
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 
 internal class LeaderboardPresenter(private val store: LeaderboardStore, private val scope: CoroutineScope) {
     private var refreshAfterLoad = false
     val shared: Boolean get() = store.shared
+    val googleAvailable: Boolean get() = store.googleAvailable
+    private var googleJob: Job? = null
+    var googleBusy by mutableStateOf(false)
+        private set
+    var googleStatus by mutableStateOf<GoogleLoginStatus?>(null)
+        private set
+    var accountName by mutableStateOf(store.accountName)
+        private set
     var source by mutableStateOf(LeaderboardSource.Local)
         private set
     var rankings by mutableStateOf(emptyList<PlayerRanking>())
@@ -22,6 +32,49 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
         private set
     var failed by mutableStateOf(false)
         private set
+
+    fun connectGoogle(openBrowser: (String) -> Unit) {
+        if (!googleAvailable || googleBusy) return
+        googleBusy = true
+        googleStatus = null
+        googleJob = scope.launch {
+            try {
+                val login = withContext(platformIo) { store.startGoogleLogin() }
+                openBrowser(login.authorizationUrl)
+                var result = GoogleLoginStatus.Pending
+                while (result == GoogleLoginStatus.Pending) {
+                    delay(2_000)
+                    result = withContext(platformIo) { store.pollGoogleLogin(login) }
+                }
+                if (result == GoogleLoginStatus.Connected) {
+                    accountName = store.accountName
+                    refresh()
+                } else {
+                    googleStatus = result
+                }
+            } catch (_: StorageException) {
+                googleStatus = GoogleLoginStatus.Failed
+            } catch (_: IllegalArgumentException) {
+                googleStatus = GoogleLoginStatus.Failed
+            } catch (_: UnsupportedOperationException) {
+                googleStatus = GoogleLoginStatus.Failed
+            } finally {
+                googleBusy = false
+            }
+        }
+    }
+
+    fun cancelGoogle() {
+        googleJob?.cancel()
+        store.signOut()
+        accountName = null
+        googleStatus = null
+        refresh()
+    }
+
+    private fun refresh() {
+        if (loading || recording) refreshAfterLoad = true else load()
+    }
 
     fun load() {
         if (loading || recording) return
@@ -35,6 +88,7 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
             } catch (_: StorageException) {
                 failed = true
             } finally {
+                accountName = store.accountName
                 loading = false
                 if (refreshAfterLoad) {
                     refreshAfterLoad = false
@@ -60,7 +114,7 @@ internal class LeaderboardPresenter(private val store: LeaderboardStore, private
                 recording = false
             }
             if (recorded && store.shared) {
-                if (loading) refreshAfterLoad = true else load()
+                refresh()
             }
         }
     }

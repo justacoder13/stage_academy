@@ -170,10 +170,7 @@ internal fun QuizNavigation(
                                     )
                                 }
                             }
-                            QuizPage.Leaderboard -> LeaderboardScreen(
-                                leaderboard.rankings, leaderboard.loading, leaderboard.failed,
-                                leaderboard.shared, leaderboard.source, leaderboard::load,
-                            )
+                            QuizPage.Leaderboard -> LeaderboardScreen(leaderboard)
                             QuizPage.Collection -> SecretCollection(
                                 secretFloats = presenter.secretFloats,
                                 onOpen = presenter::openSecret,

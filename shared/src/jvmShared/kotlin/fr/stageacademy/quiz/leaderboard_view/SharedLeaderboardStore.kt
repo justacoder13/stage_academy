@@ -9,7 +9,8 @@ import java.net.URI
 
 internal fun decodeRounds(games: JSONObject): Sequence<RankedRound> =
     games.keys().asSequence().mapNotNull { id ->
-        games.optJSONObject(id)?.let { RankedRound(id, it.optString("player"), it.optInt("points")) }
+        val round = games.optJSONObject(id) ?: return@mapNotNull null
+        RankedRound(id, round.optString("player"), round.optInt("points"), round.optString("accountId").ifBlank { null })
     }
 
 internal fun leaderboardStore(local: LocalLeaderboardStore): LeaderboardStore =
@@ -17,53 +18,105 @@ internal fun leaderboardStore(local: LocalLeaderboardStore): LeaderboardStore =
 
 internal class SharedLeaderboardStore(
     private val local: LocalLeaderboardStore,
-    baseUrl: String,
+    private val baseUrl: String,
 ) : LeaderboardStore {
-    private val endpoint = URI("${baseUrl.trimEnd('/')}/api/leaderboard/sync").toURL()
+    private data class Account(val id: String, val name: String, val token: String, val expiresAt: Long)
+    @Volatile private var session: Account? = null
+    private val account get() = session?.takeIf { System.nanoTime() < it.expiresAt }
     override val shared = true
+    override val googleAvailable = URI(baseUrl).let { it.scheme == "https" || it.host in setOf("127.0.0.1", "localhost") }
+    override val accountName get() = account?.name
 
-    override fun rankings() = standings().players
+    override fun signOut() { session = null }
 
-    override fun record(id: String, player: String, points: Int) = local.record(id, player, points)
+    override fun startGoogleLogin(): GoogleLogin = parse {
+        val result = JSONObject(request("/auth/google/start", JSONObject()))
+        val url = result.getString("authorization_url")
+        val uri = URI(url)
+        if (uri.scheme != "https" || uri.host != "accounts.google.com") throw IOException("Invalid Google URL")
+        GoogleLogin(result.getString("id"), result.getString("secret"), url)
+    }
 
-    override fun standings(): LeaderboardStandings {
-        val rounds = local.rounds()
-        return try {
-            var standings = emptyList<PlayerRanking>()
-            if (rounds.isEmpty()) standings = sync(emptyList())
-            else for (batch in rounds.chunked(100)) standings = sync(batch)
-            LeaderboardStandings(standings, LeaderboardSource.Shared)
-        } catch (_: IOException) {
-            LeaderboardStandings(rankPlayers(rounds.asSequence().map { it.player to it.points }), LeaderboardSource.Offline)
+    override fun pollGoogleLogin(login: GoogleLogin): GoogleLoginStatus = parse {
+        val body = JSONObject().put("id", login.id).put("secret", login.secret)
+        val result = JSONObject(request("/auth/google/poll", body))
+        when (result.getString("status")) {
+            "pending" -> GoogleLoginStatus.Pending
+            "expired" -> GoogleLoginStatus.Expired
+            "conflict" -> GoogleLoginStatus.Conflict
+            "complete" -> {
+                session = Account(
+                    result.getString("id"), result.getString("username"), result.getString("access_token"),
+                    System.nanoTime() + result.getLong("expires_in") * 1_000_000_000L,
+                )
+                GoogleLoginStatus.Connected
+            }
+            else -> GoogleLoginStatus.Failed
         }
     }
 
-    private fun sync(rounds: List<RankedRound>): List<PlayerRanking> {
-        val entries = JSONArray()
-        rounds.forEach { round ->
-            entries.put(JSONObject().put("id", round.id).put("player", round.player.take(1024)).put("points", round.points))
+    override fun rankings() = standings().players
+
+    override fun record(id: String, player: String, points: Int): List<PlayerRanking> {
+        val current = account
+        return local.recordOwned(id, current?.name ?: player, points, current?.id)
+    }
+
+    override fun standings(): LeaderboardStandings {
+        val current = account
+        return try {
+            val rounds = if (current == null) emptyList() else local.rounds().filter { it.accountId == current.id }
+            var players = emptyList<PlayerRanking>()
+            if (rounds.isEmpty()) {
+                players = readPlayers(request("/leaderboard"))
+            } else if (current != null) {
+                for (batch in rounds.chunked(100)) {
+                    val body = JSONArray()
+                    batch.forEach { round -> body.put(JSONObject().put("id", round.id).put("points", round.points)) }
+                    players = readPlayers(request("/leaderboard/rounds", JSONObject().put("rounds", body), current.token))
+                }
+            }
+            LeaderboardStandings(players, LeaderboardSource.Shared)
+        } catch (_: IOException) {
+            LeaderboardStandings(local.rankings(), LeaderboardSource.Offline)
         }
-        val body = JSONObject().put("rounds", entries).toString().toByteArray(Charsets.UTF_8)
-        val connection = (endpoint.openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            connectTimeout = 2_000
-            readTimeout = 3_000
+    }
+
+    private fun readPlayers(response: String): List<PlayerRanking> = parse {
+        val players = JSONArray(response)
+        List(players.length()) { index ->
+            val player = players.getJSONObject(index)
+            PlayerRanking(player.getString("name"), player.getLong("points"))
+        }
+    }
+
+    private inline fun <T> parse(read: () -> T): T = try {
+        read()
+    } catch (error: JSONException) {
+        throw IOException("Invalid server response", error)
+    } catch (error: java.net.URISyntaxException) {
+        throw IOException("Invalid server URL", error)
+    }
+
+    private fun request(path: String, body: JSONObject? = null, token: String? = null): String {
+        val connection = (URI("$baseUrl$path").toURL().openConnection() as HttpURLConnection).apply {
+            requestMethod = if (body == null) "GET" else "POST"
+            connectTimeout = 4_000
+            readTimeout = 5_000
             instanceFollowRedirects = false
-            doOutput = true
-            setRequestProperty("Content-Type", "application/json; charset=utf-8")
-            setFixedLengthStreamingMode(body.size)
+            token?.let { setRequestProperty("Authorization", "Bearer $it") }
         }
         try {
-            connection.outputStream.use { it.write(body) }
-            if (connection.responseCode != 200) throw IOException("Leaderboard HTTP ${connection.responseCode}")
-            val response = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-            val players = JSONObject(response).getJSONArray("players")
-            return List(players.length()) { index ->
-                val player = players.getJSONObject(index)
-                PlayerRanking(player.getString("name"), player.getLong("points"))
+            if (body != null) {
+                val bytes = body.toString().toByteArray(Charsets.UTF_8)
+                connection.doOutput = true
+                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                connection.setFixedLengthStreamingMode(bytes.size)
+                connection.outputStream.use { it.write(bytes) }
             }
-        } catch (error: JSONException) {
-            throw IOException("Invalid leaderboard response", error)
+            if (connection.responseCode == 401 && token != null && session?.token == token) signOut()
+            if (connection.responseCode != 200) throw IOException("Server HTTP ${connection.responseCode}")
+            return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
         } finally {
             connection.disconnect()
         }

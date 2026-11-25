@@ -14,10 +14,10 @@ internal class DesktopLeaderboardStore(private val directory: File) : LocalLeade
     override fun rankings(): List<PlayerRanking> = synchronized(lock) { rankings(readGames()) }
     override fun rounds(): List<RankedRound> = synchronized(lock) { decodeRounds(readGames()).toList() }
 
-    override fun record(id: String, player: String, points: Int): List<PlayerRanking> = synchronized(lock) {
+    override fun recordOwned(id: String, player: String, points: Int, accountId: String?): List<PlayerRanking> = synchronized(lock) {
         val games = readGames()
         if (!games.has(id)) {
-            games.put(id, JSONObject().put("player", player).put("points", points))
+            games.put(id, JSONObject().put("player", player).put("points", points).put("accountId", accountId))
             Files.createDirectories(directory.toPath())
             val pending = File.createTempFile("leaderboard-", ".tmp", directory)
             try {

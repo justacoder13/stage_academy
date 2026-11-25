@@ -19,6 +19,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
@@ -27,30 +28,51 @@ import fr.stageacademy.quiz.resources.*
 import fr.stageacademy.quiz.shared_view.MenuCard
 
 @Composable
-internal fun LeaderboardScreen(
-    players: List<PlayerRanking>,
-    loading: Boolean,
-    failed: Boolean,
-    shared: Boolean,
-    source: LeaderboardSource,
-    onRetry: () -> Unit,
-) {
+internal fun LeaderboardScreen(presenter: LeaderboardPresenter) {
+    val players = presenter.rankings
+    val loading = presenter.loading
+    val failed = presenter.failed
+    val shared = presenter.shared
+    val uriHandler = LocalUriHandler.current
     MenuCard(title = stringResource(Res.string.leaderboard)) {
         Text(
             stringResource(if (shared) Res.string.leaderboard_shared_description else Res.string.leaderboard_description),
             style = MaterialTheme.typography.bodyMedium,
         )
+        if (shared && presenter.googleAvailable) {
+            val accountName = presenter.accountName
+            when {
+                presenter.googleBusy -> {
+                    Text(stringResource(Res.string.google_waiting))
+                    TextButton(onClick = presenter::cancelGoogle) { Text(stringResource(Res.string.google_cancel)) }
+                }
+                accountName != null -> {
+                    Text(stringResource(Res.string.google_connected, accountName))
+                    TextButton(onClick = presenter::cancelGoogle) { Text(stringResource(Res.string.google_logout)) }
+                }
+                else -> Button(onClick = { presenter.connectGoogle(uriHandler::openUri) }) {
+                    Text(stringResource(Res.string.google_login))
+                }
+            }
+            val error = when (presenter.googleStatus) {
+                GoogleLoginStatus.Conflict -> Res.string.google_conflict
+                GoogleLoginStatus.Expired -> Res.string.google_expired
+                GoogleLoginStatus.Failed -> Res.string.google_failed
+                else -> null
+            }
+            if (error != null) Text(stringResource(error))
+        }
         when {
             loading -> Text(stringResource(Res.string.leaderboard_loading))
             failed -> {
                 Text(stringResource(Res.string.leaderboard_load_error))
-                TextButton(onClick = onRetry) { Text(stringResource(Res.string.leaderboard_retry)) }
+                TextButton(onClick = presenter::load) { Text(stringResource(Res.string.leaderboard_retry)) }
             }
-            source == LeaderboardSource.Offline -> Text(stringResource(Res.string.leaderboard_offline))
+            presenter.source == LeaderboardSource.Offline -> Text(stringResource(Res.string.leaderboard_offline))
             players.isEmpty() -> Text(stringResource(Res.string.leaderboard_empty))
         }
         if (shared && !loading && !failed) {
-            TextButton(onClick = onRetry) { Text(stringResource(Res.string.leaderboard_refresh)) }
+            TextButton(onClick = presenter::load) { Text(stringResource(Res.string.leaderboard_refresh)) }
         }
     }
     if (!loading && !failed) {
