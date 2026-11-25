@@ -40,10 +40,16 @@ Dans le dossier du module `app`, l’APK se trouve sous `outputs\apk\debug`.
 
 ## Compte Dev Quiz et classement partagé
 
-Pour un essai sur le même ordinateur, lance FastAPI sur `127.0.0.1:8000`
-depuis `backend/`, puis lance `.\gradlew.bat :desktop:run` depuis la
-racine. La version bureau utilise cette adresse par défaut, et revient aux
-scores locaux lorsque le serveur est arrêté.
+Les versions Android et bureau utilisent par défaut le backend HTTPS
+sur Render. L’adresse est définie dans `gradle.properties` et peut être
+remplacée à la compilation avec l’option `-PleaderboardUrl=...`.
+
+Pour un essai avec FastAPI sur le même ordinateur, démarre le serveur sur
+`127.0.0.1:8000` depuis `backend/`, puis lance cette commande à la racine.
+
+```powershell
+.\gradlew.bat :desktop:run -PleaderboardUrl=http://127.0.0.1:8000
+```
 
 Pour tester sur un téléphone Android relié en USB, garde FastAPI lancé sur le
 PC et autorise le débogage USB. Avec `adb` dans le PATH, lance ces commandes
@@ -57,10 +63,9 @@ adb -d reverse tcp:8000 tcp:8000
 Installe l’APK de développement généré sur le téléphone. Si le téléphone a été
 débranché, rebranche-le et rétablis le tunnel avec `adb -d reverse tcp:8000 tcp:8000`.
 
-Pour jouer sans câble, garde le [backend FastAPI](backend/README.md#7-classement-sur-le-réseau-privé)
-sur le PC et partage son port avec Tailscale Serve. Utilise la même adresse
-HTTPS pour Android et le bureau et remplace l’adresse d’exemple par celle
-de ton réseau privé.
+Pour utiliser un [backend privé sur Tailscale](backend/README.md#7-classement-sur-le-réseau-privé),
+utilise la même adresse HTTPS sur les deux versions. Remplace
+l’adresse d’exemple par celle de ton réseau privé.
 
 ```powershell
 .\gradlew.bat :app:assembleDebug :desktop:installDist -PleaderboardUrl=https://quiz.example.com
@@ -79,9 +84,9 @@ pendant la session et expire après 30 minutes par défaut. Au redémarrage ou
 après expiration, reconnecte-toi pour synchroniser tes parties.
 
 Les parties invitées et l’ancien historique restent accessibles dans
-**Voir les scores de cet appareil**. Sur Android, une compilation sans
-`leaderboardUrl` utilise le classement local. Les points dépensables dans la collection sont
-gérés par le jeu sur chaque appareil.
+**Voir les scores de cet appareil**. Sur Android, l’option
+`-PleaderboardUrl=` force le classement local. Les points dépensables dans
+la collection sont gérés par le jeu sur chaque appareil.
 
 ## Repérer les fichiers
 
