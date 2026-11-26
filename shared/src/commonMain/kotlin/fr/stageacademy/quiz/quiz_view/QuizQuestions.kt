@@ -126,4 +126,74 @@ val quizQuestions: List<Question> = listOf(
         choices = listOf("L’impression 3D", "La réalité virtuelle uniquement", "L’intelligence artificielle"),
         correctAnswer = "L’intelligence artificielle",
     ),
+    Question(
+        text = "Qui définit la stratégie technique d’une entreprise numérique ?",
+        choices = listOf("Le CTO", "Le responsable de la publicité", "Le Product Designer"),
+        correctAnswer = "Le CTO",
+    ),
+    Question(
+        text = "L’application ralentit quand beaucoup de joueurs se connectent. Que peut décider le CTO ?",
+        choices = listOf("Changer le prix de l’abonnement", "Faire tester la capacité du système", "Modifier le logo"),
+        correctAnswer = "Faire tester la capacité du système",
+    ),
+    Question(
+        text = "Quel choix peut générer des revenus dans une application gratuite ?",
+        choices = listOf("Réduire le temps de chargement", "Changer la couleur du menu", "Vendre une option pour retirer les publicités"),
+        correctAnswer = "Vendre une option pour retirer les publicités",
+    ),
+    Question(
+        text = "Quel indicateur mesure la part des utilisateurs qui achètent une option payante ?",
+        choices = listOf("Le taux de conversion vers l’achat", "Le nombre de téléchargements", "La durée moyenne des sessions"),
+        correctAnswer = "Le taux de conversion vers l’achat",
+    ),
+    Question(
+        text = "Quelle mission peut être confiée à un data scientist ?",
+        choices = listOf("Dessiner le menu du quiz", "Construire un modèle qui prédit si les joueurs reviendront", "Configurer les mises à jour de l’application"),
+        correctAnswer = "Construire un modèle qui prédit si les joueurs reviendront",
+    ),
+    Question(
+        text = "Sur quelles données un data scientist teste-t-il la capacité d’un modèle à faire de nouvelles prédictions ?",
+        choices = listOf("Seulement les exemples bien prédits", "Les mêmes données que pour l’entraînement", "Des données mises de côté pendant l’entraînement"),
+        correctAnswer = "Des données mises de côté pendant l’entraînement",
+    ),
+    Question(
+        text = "Quelle mission relève du data engineer ?",
+        choices = listOf("Automatiser la collecte et la préparation des données", "Choisir le prix d’un abonnement", "Dessiner les écrans du quiz"),
+        correctAnswer = "Automatiser la collecte et la préparation des données",
+    ),
+    Question(
+        text = "Chaque partie doit apparaître une seule fois dans les données. Quel contrôle le data engineer peut-il ajouter ?",
+        choices = listOf("Exiger un score différent à chaque partie", "Vérifier que chaque identifiant de partie est unique", "Garder uniquement la dernière partie de chaque joueur"),
+        correctAnswer = "Vérifier que chaque identifiant de partie est unique",
+    ),
+    Question(
+        text = "L’équipe VMA prépare souvent le même type de rapport. Quel outil lui ferait gagner du temps ?",
+        choices = listOf("Un dossier supplémentaire pour les anciens rapports", "Un formulaire à recopier chaque semaine", "Un générateur qui remplit le rapport à partir des données disponibles"),
+        correctAnswer = "Un générateur qui remplit le rapport à partir des données disponibles",
+    ),
+    Question(
+        text = "Comment vérifier qu’un nouvel outil aide vraiment l’équipe VMA ?",
+        choices = listOf("Observer l’équipe sur une tâche habituelle et comparer le temps et les erreurs", "Compter les boutons de l’outil", "Mesurer la taille du fichier d’installation"),
+        correctAnswer = "Observer l’équipe sur une tâche habituelle et comparer le temps et les erreurs",
+    ),
+    Question(
+        text = "L’équipe ne peut développer qu’une seule nouveauté. Comment le Product Manager (PM) peut-il décider ?",
+        choices = listOf("Choisir la dernière idée proposée", "Comparer les besoins des joueurs, l’impact attendu et l’effort", "Choisir systématiquement la nouveauté la plus rapide à développer"),
+        correctAnswer = "Comparer les besoins des joueurs, l’impact attendu et l’effort",
+    ),
+    Question(
+        text = "Quel indicateur aide le PM à savoir si davantage de nouveaux joueurs finissent leur premier quiz ?",
+        choices = listOf("Le nombre d’écrans de l’application", "Le nombre de questions disponibles", "La part des nouveaux joueurs qui terminent leur premier quiz"),
+        correctAnswer = "La part des nouveaux joueurs qui terminent leur premier quiz",
+    ),
+    Question(
+        text = "Que peut préparer un Product Designer pour tester un nouveau menu avant son développement ?",
+        choices = listOf("Un prototype cliquable du menu", "Un tableau des ventes", "Un journal des erreurs du serveur"),
+        correctAnswer = "Un prototype cliquable du menu",
+    ),
+    Question(
+        text = "Comment le Product Designer peut-il vérifier si le bouton Recommencer est facile à trouver ?",
+        choices = listOf("Compter les boutons sur l’écran", "Observer des joueurs qui essaient de relancer une partie sans leur montrer le bouton", "Demander aux joueurs leur couleur préférée"),
+        correctAnswer = "Observer des joueurs qui essaient de relancer une partie sans leur montrer le bouton",
+    ),
 )
